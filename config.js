@@ -6,7 +6,7 @@
    key in this file.
    ===================================================================== */
 window.CONFIG = {
-  SUPABASE_URL: "https://assllpfqqprvpbxpwgcv.supabase.co/rest/v1/",   // e.g. https://abcdefghijkl.supabase.co
+  SUPABASE_URL: "https://assllpfqqprvpbxpwgcv.supabase.co",   // e.g. https://abcdefghijkl.supabase.co
   SUPABASE_KEY: "sb_publishable_vuwXVqvOiYdaYiFwB2E1qg_OJoo8WIT",   // the "anon" / "publishable" key
   SITE_URL:     ""    // your domain once bought, e.g. https://monoram.com
 };

@@ -5,12 +5,24 @@
 export const CFG = window.CONFIG || {};
 export const configured = !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY);
 
+function cleanUrl(raw) {
+  let url = String(raw || "").trim().replace(/["']/g, "");   // trim + strip stray quotes
+  url = url.replace(/\/+$/, "");                              // strip trailing slash(es)
+  url = url.replace(/\/rest\/v1$/, "");                       // strip a trailing /rest/v1
+  url = url.replace(/\/+$/, "");                              // strip any slash left behind
+  if (!/^https:\/\//.test(url))
+    console.warn("[Monoram] SUPABASE_URL in config.js should start with https:// — got:", raw);
+  if (!/\.supabase\.co/.test(url))
+    console.warn("[Monoram] SUPABASE_URL in config.js should contain .supabase.co — got:", raw);
+  return url;
+}
+
 let _sb = null;
 export async function db() {
   if (!configured) return null;
   if (_sb) return _sb;
   const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-  _sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
+  _sb = createClient(cleanUrl(CFG.SUPABASE_URL), CFG.SUPABASE_KEY);
   return _sb;
 }
 

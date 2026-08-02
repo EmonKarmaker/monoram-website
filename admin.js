@@ -35,12 +35,29 @@ function enter(user) {
   $("userEmail").textContent = user.email || "";
   loadAll();
 }
+function authHint(error) {
+  const raw = error?.message || "Unknown error";
+  const status = error?.status, code = error?.code || "", m = raw.toLowerCase();
+  let plain;
+  if (code === "PGRST125" || m.includes("invalid path"))
+    plain = "The website is pointing at the wrong address. Check SUPABASE_URL in config.js — it should end in .supabase.co and nothing more.";
+  else if (m.includes("invalid api key") || status === 401)
+    plain = "The key in config.js is not correct. Copy the publishable (or anon) key again from Supabase, Project Settings, API Keys.";
+  else if (m.includes("invalid login credentials"))
+    plain = "That email or password is not right.";
+  else if (m.includes("failed to fetch") || m.includes("network") || m.includes("load failed"))
+    plain = "Cannot reach the database. Check your internet connection.";
+  else
+    plain = "Sign-in failed.";
+  return `${esc(plain)}<small style="display:block;margin-top:.4em;opacity:.7">${esc(raw)}</small>`;
+}
+
 $("loginBtn").addEventListener("click", async () => {
   const b = $("loginBtn"); b.disabled = true;
   const { data, error } = await SB.auth.signInWithPassword({
     email: $("email").value.trim(), password: $("pw").value });
   b.disabled = false;
-  if (error) return msg($("loginMsg"), esc(error.message), "err");
+  if (error) return msg($("loginMsg"), authHint(error), "err");
   enter(data.user);
 });
 $("pw").addEventListener("keydown", e => { if (e.key === "Enter") $("loginBtn").click(); });
