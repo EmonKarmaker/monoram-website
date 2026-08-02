@@ -251,11 +251,14 @@ function footerBlock() {
   const bits = [S.shop_name, pick(S, "address"), line3,
                 [S.phone1, S.phone2].filter(Boolean).join(" \u00B7 ")].filter(Boolean).map(esc);
   const q = encodeURIComponent(`${S.shop_name || ""} ${S.address || ""}`.trim() || "Sirajganj");
+  const mapHref = (S.map_url && S.map_url.trim())
+    ? S.map_url.trim()
+    : `https://www.google.com/maps/search/?api=1&query=${q}`;
   return `<footer><div class="wrap">
     ${lockup("sm")}
     <h2 style="font-size:26px;margin-bottom:12px">${esc(t("visit"))}</h2>
     <p>${bits.join("<br>")}</p>
-    <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${q}">${esc(t("map"))}</a>
+    <a class="maplink" href="${esc(mapHref)}" target="_blank" rel="noopener">${esc(t("map"))}</a>
     <p class="fine">${esc(S.email || "")}</p>
   </div></footer>`;
 }

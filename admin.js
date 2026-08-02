@@ -232,7 +232,7 @@ const F = {
   s_banner:"banner_text", s_banner_bn:"banner_text_bn", s_name:"shop_name", s_tagline:"tagline",
   s_addr:"address", s_addr_bn:"address_bn", s_hours:"hours", s_hours_bn:"hours_bn",
   s_closed:"closed_day", s_closed_bn:"closed_day_bn",
-  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email"
+  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email", s_map:"map_url"
 };
 const C = { s_banner_on:"banner_on", s_hall:"show_hallmark", s_slip:"show_slip",
             s_exch:"show_exchange", s_rep:"show_repair", s_bajus:"bajus_member" };
