@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Monoram Jewellers</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+Bengali:wght@400;500&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--paper2:#f5f4f1;--ink:#101114;--ink2:#5c5a55;--gold:#9a6b1f;
+--goldbg:#fdf6e8;--line:#e4e2dd;--ok:#16794a;--okbg:#f0f9f2;--bad:#8a2b2b;--badbg:#fff4f4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper2);color:var(--ink);
+  font-family:"Poppins",system-ui,sans-serif;font-weight:300;line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:0 14px}
+h1,h2,h3{font-family:"Marcellus",Georgia,serif;font-weight:400;margin:0}
+.bn{font-family:"Noto Sans Bengali",Poppins,sans-serif}
+
+/* login */
+.login{max-width:380px;margin:12vh auto;background:#fff;border:1px solid var(--line);
+  border-radius:6px;padding:26px 22px}
+.login h1{font-size:23px;margin-bottom:4px}
+.login p.sub{margin:0 0 20px;font-size:12.5px;color:var(--ink2)}
+
+/* topbar */
+header{background:var(--ink);color:#fff;position:sticky;top:0;z-index:20}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}
+header h1{font-size:16px;color:#fff}
+header .who{font-size:10.5px;color:#a9a6a0}
+.tabs{display:flex;gap:6px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);
+  position:sticky;top:49px;z-index:19;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs .wrap{display:flex;gap:6px;padding:9px 14px}
+.tab{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;padding:7px 15px;
+  font-family:inherit;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+main{padding:16px 0 60px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:18px 16px;margin-bottom:14px}
+.panel h2{font-size:18px;margin-bottom:3px}
+.panel .hint{margin:0 0 16px;font-size:12px;color:var(--ink2);line-height:1.6}
+
+label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink2);margin-bottom:5px}
+.field{margin-bottom:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.row2{grid-template-columns:1fr}}
+input,select,textarea{width:100%;background:#fff;border:1px solid var(--line);color:var(--ink);
+  font-family:inherit;font-weight:400;font-size:15px;padding:11px;border-radius:4px;appearance:none}
+textarea{min-height:74px;font-weight:300;line-height:1.6;resize:vertical}
+input[type=file]{padding:9px;font-size:13px;font-weight:300}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);
+  outline-offset:1px;border-color:transparent}
+.check{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13.5px;font-weight:400}
+.check input{width:20px;height:20px;flex:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 18px;
+  border-radius:4px;border:1px solid transparent;font-family:inherit;font-size:13px;font-weight:500;
+  cursor:pointer;text-decoration:none}
+.btn.dark{background:var(--ink);color:#fff;width:100%}
+.btn.line{background:#fff;border-color:var(--line);color:var(--ink)}
+.btn.danger{background:var(--badbg);border-color:#f0c9c9;color:var(--bad)}
+.btn.sm{padding:8px 13px;font-size:12px}
+.btn:disabled{opacity:.55;cursor:default}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:6px}
+
+.msg{margin:12px 0 0;padding:11px 13px;border-radius:4px;font-size:12.5px;line-height:1.6}
+.msg.ok{background:var(--okbg);color:var(--ok);border:1px solid #cfe8d9}
+.msg.err{background:var(--badbg);color:var(--bad);border:1px solid #f0c9c9}
+
+/* lists */
+.item{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .ph{width:52px;height:52px;border-radius:4px;background:var(--paper2);flex:none;
+  border:1px solid var(--line);object-fit:cover}
+.item .info{flex:1;min-width:0}
+.item .info b{display:block;font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .info span{font-size:11.5px;color:var(--ink2)}
+.item .ops{display:flex;gap:6px;flex:none}
+.pill{display:inline-block;font-size:10px;background:var(--paper2);border:1px solid var(--line);
+  padding:2px 7px;border-radius:99px;color:var(--ink2);margin-left:6px}
+
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sbox{border:1px solid var(--line);border-radius:5px;padding:14px}
+.sbox b{display:block;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.sbox span{font-size:11px;color:var(--ink2)}
+.note{background:var(--goldbg);border:1px solid #ecdcb8;border-radius:5px;padding:12px 14px;
+  font-size:12px;color:var(--gold);line-height:1.65;margin-bottom:14px}
+.hide{display:none !important}
+.loggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
+.logbtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:10px 6px 8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;font-family:inherit}
+.logbtn[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.logbtn svg{width:34px;height:34px;color:var(--gold)}
+.logbtn span{font-size:9px;color:var(--ink2);text-align:center;line-height:1.3}
+.pickgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.pickbtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:13px 14px;cursor:pointer;
+  text-align:left;font-family:inherit}
+.pickbtn[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.pickbtn b{display:block;font-size:14px;font-weight:500;color:var(--ink)}
+.pickbtn span{display:block;font-size:11.5px;color:var(--ink2);margin-top:3px;line-height:1.5}
+input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
+.pair{display:flex;gap:8px}
+.sw{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.swtop{padding:20px 18px}
+.swtop .t{font-family:Marcellus,Georgia,serif;font-size:20px;margin:0}
+.swtop .s{font-size:12px;margin:5px 0 0;opacity:.75}
+.swtop .pill{display:inline-block;margin-top:12px;border-radius:99px;padding:7px 15px;font-size:12px;
+  font-weight:500}
+.swbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 18px 18px}
+.swb{padding:11px;border-radius:4px;text-align:center;font-size:12px;font-weight:500}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div class="login" id="loginBox">
+  <h1>Monoram admin</h1>
+  <p class="sub">Sign in to update rates and the collection.</p>
+  <div class="field"><label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" inputmode="email"></div>
+  <div class="field"><label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password"></div>
+  <button class="btn dark" id="loginBtn" type="button">Sign in</button>
+  <div id="loginMsg"></div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hide">
+  <header><div class="wrap">
+    <div><h1>Monoram admin</h1><div class="who" id="userEmail"></div></div>
+    <button class="btn line sm" id="logout" type="button">Sign out</button>
+  </div></header>
+
+  <div class="tabs"><div class="wrap">
+    <button class="tab" data-tab="rates"  aria-selected="true">Gold rate</button>
+    <button class="tab" data-tab="items"  aria-selected="false">Collection</button>
+    <button class="tab" data-tab="shop"   aria-selected="false">Shop details</button>
+    <button class="tab" data-tab="look"   aria-selected="false">Look</button>
+    <button class="tab" data-tab="fest"   aria-selected="false">Festival card</button>
+    <button class="tab" data-tab="stats"  aria-selected="false">Visitors</button>
+  </div></div>
+
+  <main class="wrap">
+
+    <!-- ---------- RATES ---------- -->
+    <div id="tab-rates">
+      <div class="panel">
+        <h2>Publish today's rate</h2>
+        <p class="hint">Enter the BAJUS rate per bhori. Saving publishes it to the website straight away and
+          adds a point to the history chart. Leave silver blank if you don't want to show it.</p>
+        <div class="field"><label for="r_eff">Effective from</label>
+          <input id="r_eff" type="text" placeholder="10:00 AM, 24 July 2026"></div>
+        <div class="row2">
+          <div class="field"><label for="r_k22">22 carat</label><input id="r_k22" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="r_k21">21 carat</label><input id="r_k21" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="r_trad">Traditional</label><input id="r_trad" type="number" inputmode="decimal" step="any"></div>
+        </div>
+        <div class="field"><label for="r_silver">Silver (optional)</label>
+          <input id="r_silver" type="number" inputmode="decimal" step="any"></div>
+        <button class="btn dark" id="saveRate" type="button">Publish rate</button>
+        <div id="rateMsg"></div>
+      </div>
+      <div class="panel">
+        <h2>History</h2>
+        <p class="hint">Every rate you publish is kept here and drawn on the chart.</p>
+        <div id="rateList"></div>
+      </div>
+    </div>
+
+    <!-- ---------- ITEMS ---------- -->
+    <div id="tab-items" class="hide">
+      <div class="panel">
+        <h2 id="itemFormTitle">Add a piece</h2>
+        <p class="hint">A photo is optional — without one the card shows an empty frame.
+          Photos are shrunk automatically before upload.</p>
+        <input type="hidden" id="i_id">
+        <div class="row2">
+          <div class="field"><label for="i_name">Name (English)</label><input id="i_name" type="text"></div>
+          <div class="field"><label for="i_name_bn">Name (Bangla)</label><input id="i_name_bn" type="text" class="bn"></div>
+          <div class="field"><label for="i_cat">Category (English)</label><input id="i_cat" type="text" placeholder="Necklace"></div>
+          <div class="field"><label for="i_cat_bn">Category (Bangla)</label><input id="i_cat_bn" type="text" class="bn"></div>
+          <div class="field"><label for="i_karat">Carat</label>
+            <select id="i_karat"><option value="">—</option><option>22K</option><option>21K</option><option>Traditional</option></select></div>
+          <div class="field"><label for="i_weight">Weight in bhori</label><input id="i_weight" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="i_price">Price</label><input id="i_price" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="i_tag">Tag (optional)</label><input id="i_tag" type="text" placeholder="Bridal"></div>
+        </div>
+        <div class="check"><input id="i_req" type="checkbox"><label for="i_req" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Hide price, show "Ask for price"</label></div>
+        <div class="check"><input id="i_featured" type="checkbox"><label for="i_featured" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Show as the featured piece at the top</label></div>
+        <div class="check"><input id="i_sold" type="checkbox"><label for="i_sold" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Sold</label></div>
+        <div class="field"><label for="i_photo">Photo</label><input id="i_photo" type="file" accept="image/*"></div>
+        <div class="actions">
+          <button class="btn dark" id="saveItem" type="button" style="width:auto">Save piece</button>
+          <button class="btn line" id="cancelItem" type="button">Clear form</button>
+        </div>
+        <div id="itemMsg"></div>
+      </div>
+      <div class="panel">
+        <h2>Collection</h2>
+        <div id="itemList"></div>
+      </div>
+    </div>
+
+    <!-- ---------- SHOP ---------- -->
+    <div id="tab-shop" class="hide">
+      <div class="panel">
+        <h2>Front page</h2>
+        <p class="hint">The heading and the line under it. Leave blank to fall back to the shop name and tagline.</p>
+        <div class="field"><label for="s_hero">Heading (English)</label><input id="s_hero" type="text"></div>
+        <div class="field"><label for="s_hero_bn">Heading (Bangla)</label><input id="s_hero_bn" type="text" class="bn"></div>
+        <div class="field"><label for="s_herotext">Text under it (English)</label><textarea id="s_herotext"></textarea></div>
+        <div class="field"><label for="s_herotext_bn">Text under it (Bangla)</label><textarea id="s_herotext_bn" class="bn"></textarea></div>
+      </div>
+
+      <div class="panel">
+        <h2>Notice banner</h2>
+        <p class="hint">A strip across the top — for Eid, wedding season or a closing notice. Off by default.</p>
+        <div class="check"><input id="s_banner_on" type="checkbox"><label for="s_banner_on" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Show the banner</label></div>
+        <div class="field"><label for="s_banner">Banner text (English)</label><input id="s_banner" type="text"></div>
+        <div class="field"><label for="s_banner_bn">Banner text (Bangla)</label><input id="s_banner_bn" type="text" class="bn"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Shop</h2>
+        <div class="row2">
+          <div class="field"><label for="s_name">Shop name</label><input id="s_name" type="text"></div>
+          <div class="field"><label for="s_tagline">Tagline</label><input id="s_tagline" type="text"></div>
+          <div class="field"><label for="s_addr">Address (English)</label><input id="s_addr" type="text"></div>
+          <div class="field"><label for="s_addr_bn">Address (Bangla)</label><input id="s_addr_bn" type="text" class="bn"></div>
+          <div class="field"><label for="s_hours">Opening hours (English)</label><input id="s_hours" type="text" placeholder="10:00 AM – 8:00 PM"></div>
+          <div class="field"><label for="s_hours_bn">Opening hours (Bangla)</label><input id="s_hours_bn" type="text" class="bn"></div>
+          <div class="field"><label for="s_closed">Weekly closing day (English)</label><input id="s_closed" type="text" placeholder="Friday"></div>
+          <div class="field"><label for="s_closed_bn">Weekly closing day (Bangla)</label><input id="s_closed_bn" type="text" class="bn"></div>
+          <div class="field"><label for="s_p1">Phone 1</label><input id="s_p1" type="text"></div>
+          <div class="field"><label for="s_p2">Phone 2</label><input id="s_p2" type="text"></div>
+          <div class="field"><label for="s_wa">WhatsApp number</label><input id="s_wa" type="text" placeholder="8801762436392"></div>
+          <div class="field"><label for="s_email">Email</label><input id="s_email" type="email"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>What we show</h2>
+        <p class="hint">Untick anything you don't want claimed on the website.</p>
+        <div class="check"><input id="s_hall" type="checkbox"><label for="s_hall" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Hallmarked gold</label></div>
+        <div class="check"><input id="s_slip" type="checkbox"><label for="s_slip" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Written slip</label></div>
+        <div class="check"><input id="s_exch" type="checkbox"><label for="s_exch" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Old gold exchange</label></div>
+        <div class="check"><input id="s_rep" type="checkbox"><label for="s_rep" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Repair and polishing</label></div>
+        <div class="check"><input id="s_bajus" type="checkbox"><label for="s_bajus" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">BAJUS member</label></div>
+        <button class="btn dark" id="saveShop" type="button" style="margin-top:12px">Save shop details</button>
+        <div id="shopMsg"></div>
+      </div>
+    </div>
+
+
+    <!-- ---------- LOOK ---------- -->
+    <div id="tab-look" class="hide">
+      <div class="panel">
+        <h2>Logo</h2>
+        <p class="hint">Thirteen marks from your printed cards. Pick one, or upload your own SVG.</p>
+        <div id="logoGrid" class="loggrid"></div>
+        <div class="field" style="margin-top:14px"><label for="logoFile">Upload your own SVG</label>
+          <input id="logoFile" type="file" accept=".svg,image/svg+xml"></div>
+        <div class="actions">
+          <button class="btn line" id="clearLogo" type="button">Use a card mark instead</button>
+        </div>
+        <div id="logoMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Page layout</h2>
+        <p class="hint">Same content, arranged three different ways.</p>
+        <div id="layoutGrid" class="pickgrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Decoration</h2>
+        <p class="hint">Minimal matches the printed card. Ornate fills the corners with gold bloomwork.</p>
+        <div id="langGrid" class="pickgrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Colour</h2>
+        <p class="hint">Festival themes change the gold to a seasonal colour. The background stays
+          as it is on the card, so the shop never looks garish.</p>
+        <div class="field"><label for="c_fest">Festival theme</label><select id="c_fest"></select></div>
+        <div class="row2">
+          <div class="field"><label for="c_default">Which visitors see first</label>
+            <select id="c_default"><option value="night">Night</option><option value="ivory">Ivory</option></select></div>
+          <div class="field"><label for="c_accent">Own accent colour (optional)</label>
+            <div class="pair"><input id="c_accent" type="color"><input id="c_accent_t" type="text" spellcheck="false" placeholder="leave blank for the festival colour"></div></div>
+        </div>
+        <div class="check"><input id="c_toggle" type="checkbox">
+          <label for="c_toggle" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">
+            Let visitors switch between night and ivory</label></div>
+        <div id="contrastWarn"></div>
+        <h3 style="font-family:Marcellus,serif;font-weight:400;font-size:15px;margin:18px 0 8px">Preview</h3>
+        <div id="swatch"></div>
+        <div class="actions" style="margin-top:16px">
+          <button class="btn dark" id="saveLook" type="button" style="width:auto">Save look</button>
+          <button class="btn line" id="resetLook" type="button">Back to the original</button>
+        </div>
+        <div id="lookMsg"></div>
+      </div>
+    </div>
+
+    <!-- ---------- FESTIVAL ---------- -->
+    <div id="tab-fest" class="hide">
+      <div class="panel">
+        <h2 id="festFormTitle">Add a festival card</h2>
+        <p class="hint">Shows at the very top of the website. Visitors can close it, and it comes
+          back the next day. Only one can be switched on at a time.</p>
+        <input type="hidden" id="f_id">
+        <div class="row2">
+          <div class="field"><label for="f_name">Your name for it</label>
+            <input id="f_name" type="text" placeholder="Eid 2026"></div>
+          <div class="field"><label for="f_key">Colour theme</label><select id="f_key"></select></div>
+          <div class="field"><label for="f_title">Heading (English)</label>
+            <input id="f_title" type="text" placeholder="Eid Mubarak"></div>
+          <div class="field"><label for="f_title_bn">Heading (Bangla)</label>
+            <input id="f_title_bn" type="text" class="bn"></div>
+        </div>
+        <div class="field"><label for="f_text">Text (English)</label><textarea id="f_text"></textarea></div>
+        <div class="field"><label for="f_text_bn">Text (Bangla)</label><textarea id="f_text_bn" class="bn"></textarea></div>
+        <div class="row2">
+          <div class="field"><label for="f_cta">Button words (optional)</label>
+            <input id="f_cta" type="text" placeholder="See the collection"></div>
+          <div class="field"><label for="f_cta_bn">Button words (Bangla)</label>
+            <input id="f_cta_bn" type="text" class="bn"></div>
+        </div>
+        <div class="field"><label for="f_image">Picture</label><input id="f_image" type="file" accept="image/*"></div>
+        <div class="check"><input id="f_hastext" type="checkbox">
+          <label for="f_hastext" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">
+            My picture already has the words on it &mdash; show it untouched</label></div>
+        <div class="row2">
+          <div class="field"><label for="f_ends">Turn off after this date</label>
+            <input id="f_ends" type="date"></div>
+          <div class="field"><label>&nbsp;</label>
+            <div class="check" style="padding:0"><input id="f_active" type="checkbox">
+              <label for="f_active" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">
+                Show this one now</label></div></div>
+        </div>
+        <div class="actions">
+          <button class="btn dark" id="saveFest" type="button" style="width:auto">Save festival card</button>
+          <button class="btn line" id="cancelFest" type="button">Clear form</button>
+        </div>
+        <div id="festMsg"></div>
+      </div>
+      <div class="panel">
+        <h2>Saved cards</h2>
+        <div id="festList"></div>
+      </div>
+    </div>
+
+    <!-- ---------- STATS ---------- -->
+    <div id="tab-stats" class="hide">
+      <div class="panel">
+        <h2>Visitors</h2>
+        <p class="hint">How many times the website has been opened, including from the QR code on your card.</p>
+        <div class="stat">
+          <div class="sbox"><b id="v_today">—</b><span>Opened today</span></div>
+          <div class="sbox"><b id="v_week">—</b><span>Last 7 days</span></div>
+          <div class="sbox"><b id="v_total">—</b><span>All time</span></div>
+          <div class="sbox"><b id="v_prod">—</b><span>Enquiry taps</span></div>
+        </div>
+        <h3 style="font-size:15px;margin:18px 0 8px">Most looked at</h3>
+        <div id="topList"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="marks.js"></script>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

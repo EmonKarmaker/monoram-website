@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monoram Jewellers — Mujib Sarak, Sirajganj</title>
+<meta name="description" content="Hallmarked gold ornaments at Mujib Sarak, Sirajganj. Today's gold rate, our collection, and how to reach us.">
+<meta name="theme-color" content="#0f0c0c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans+Bengali:wght@300;400;500&family=Poppins:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"><div class="wrap">
+  <span class="tb-brand">
+    <span class="tb-mark" id="tbMark"></span>
+    <span class="tb-name" id="tbName"></span>
+  </span>
+  <span class="ctl">
+    <button class="cbtn" id="modeBtn" type="button"></button>
+    <button class="cbtn" id="langBtn" type="button"></button>
+  </span>
+</div></div>
+
+<div id="festHost"></div>
+<div class="banner hide" id="banner"><p id="bannerText"></p></div>
+<div id="setupWarn"></div>
+
+<main id="stage"></main>
+
+<nav class="bar"><div class="wrap">
+  <a class="btn g" id="callBtn" href="#"></a>
+  <a class="btn o" id="waBtn" href="#"></a>
+</div></nav>
+
+<canvas id="rateCanvas" width="1080" height="1350" style="display:none"></canvas>
+
+<script src="config.js"></script>
+<script src="marks.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
