@@ -14,6 +14,37 @@ const taka = n => "\u09F3" + Math.round(n).toLocaleString("en-IN");
 
 let SB = null;
 
+/* Sign-in failures in plain words. The shop owner is not a developer and cannot
+   act on "Invalid path specified in request URL", so the technical text is kept
+   but demoted to a small line underneath. */
+function friendlyAuthError(err) {
+  const raw = err?.message || String(err || "");
+  const low = raw.toLowerCase();
+  const code = err?.code || "";
+  const status = err?.status || 0;
+
+  if (code === "PGRST125" || low.includes("invalid path"))
+    return "The website is pointing at the wrong address. Check SUPABASE_URL in config.js — it should end in .supabase.co and nothing more.";
+  if (low.includes("invalid login credentials"))
+    return "That email or password is not right.";
+  if (low.includes("email not confirmed"))
+    return "This email address has not been confirmed yet. Open the confirmation email from Supabase, or confirm the user in Supabase, Authentication, Users.";
+  if (low.includes("invalid api key") || low.includes("no api key") || status === 401)
+    return "The key in config.js is not correct. Copy the publishable (or anon) key again from Supabase, Project Settings, API Keys.";
+  if (err?.name === "AuthRetryableFetchError" || low.includes("failed to fetch") ||
+      low.includes("networkerror") || low.includes("load failed") || low.includes("network request failed"))
+    return "Cannot reach the database. Check your internet connection.";
+  if (low.includes("too many requests") || status === 429)
+    return "Too many attempts in a row. Wait a minute, then try again.";
+  return "Sign-in did not work. The technical reason is below.";
+}
+
+function authMsg(el, err) {
+  const raw = err?.message || String(err || "");
+  el.innerHTML = `<div class="msg err">${esc(friendlyAuthError(err))}` +
+    (raw ? `<div class="tech">${esc(raw)}</div>` : "") + `</div>`;
+}
+
 if (!configured) {
   document.body.innerHTML =
     '<div class="login"><h1>Not connected</h1><p class="sub">Open <b>config.js</b> and paste in your ' +
@@ -40,7 +71,7 @@ $("loginBtn").addEventListener("click", async () => {
   const { data, error } = await SB.auth.signInWithPassword({
     email: $("email").value.trim(), password: $("pw").value });
   b.disabled = false;
-  if (error) return msg($("loginMsg"), esc(error.message), "err");
+  if (error) return authMsg($("loginMsg"), error);
   enter(data.user);
 });
 $("pw").addEventListener("keydown", e => { if (e.key === "Enter") $("loginBtn").click(); });

@@ -5,12 +5,28 @@
 export const CFG = window.CONFIG || {};
 export const configured = !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY);
 
+/* The Supabase library adds /rest/v1 and /auth/v1 itself, so SUPABASE_URL must be
+   the bare origin. Anything extra gives "PGRST125 Invalid path specified in request
+   URL" on every call. Tidy the obvious slips, and say so out loud rather than
+   pretending a genuinely wrong address is fine. */
+function cleanUrl(raw) {
+  const given = String(raw ?? "").trim();
+  const url = given.replace(/\/+$/, "").replace(/\/rest\/v1$/i, "").replace(/\/+$/, "");
+  if (url !== given)
+    console.warn(`config.js: SUPABASE_URL had extra characters on the end. Using "${url}" instead of "${given}". Please tidy config.js so it reads "${url}".`);
+  if (url && !/^https:\/\//i.test(url))
+    console.warn(`config.js: SUPABASE_URL must start with https:// — it is currently "${url}". Copy the Project URL from Supabase, Project Settings, API.`);
+  else if (url && !url.includes(".supabase.co"))
+    console.warn(`config.js: SUPABASE_URL does not contain .supabase.co — it is currently "${url}". Copy the Project URL from Supabase, Project Settings, API.`);
+  return url;
+}
+
 let _sb = null;
 export async function db() {
   if (!configured) return null;
   if (_sb) return _sb;
   const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-  _sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
+  _sb = createClient(cleanUrl(CFG.SUPABASE_URL), String(CFG.SUPABASE_KEY ?? "").trim());
   return _sb;
 }
 
