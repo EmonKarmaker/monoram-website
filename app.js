@@ -2,6 +2,7 @@ import { db, configured, t, lang, setLang, money, num, esc, pick, bhoriLabel,
          BHORI, ANA, RATTI, KARATS, karatName } from "./lib.js";
 import { buildTheme, applyTheme, DEFAULTS, logoSVG, wordmarkSVG, jewellersSVG,
          bouquetSVG, mandalaSVG, RULE } from "./theme.js";
+import { mountFX, wireFX, FX_DEFAULTS } from "./ambient.js";
 
 const $ = id => document.getElementById(id);
 const UNITS = { bhori: BHORI, ana: ANA, ratti: RATTI, gram: 1 };
@@ -9,6 +10,7 @@ const UNITS = { bhori: BHORI, ana: ANA, ratti: RATTI, gram: 1 };
 let S = {}, RATES = [], LATEST = null, PREV = null, PRODUCTS = [], FEST = null;
 let filter = "__all";
 let mode = localStorage.getItem("mj_mode") || null;
+let fxVisitor = localStorage.getItem("mj_fx");   // "on" | "off" | null = follow the shop setting
 
 /* ===================== load ===================== */
 async function load() {
@@ -57,15 +59,24 @@ function themeSource() {
 }
 function paint() {
   applyTheme(buildTheme(themeSource(), mode));
+  const cs = getComputedStyle(document.documentElement);
   document.querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", getComputedStyle(document.documentElement)
-      .getPropertyValue("--bg").trim());
+    ?.setAttribute("content", cs.getPropertyValue("--bg").trim());
+  wireFX();
+  const fxWanted = fxVisitor === "off" ? false
+                 : fxVisitor === "on" ? true
+                 : S.fx_on !== false;
+  mountFX(Object.assign({}, S, { fx_on: fxWanted }), mode, {
+    star: mode === "night" ? "#d9c8a2" : cs.getPropertyValue("--accent").trim(),
+    gold: cs.getPropertyValue("--accent").trim()
+  });
 }
 function toggleMode() {
   mode = mode === "night" ? "ivory" : "night";
   localStorage.setItem("mj_mode", mode);
   paint(); render();
 }
+
 
 /* ===================== helpers ===================== */
 const layout = () => ["thread", "invitation", "ornate"].includes(S.layout) ? S.layout : DEFAULTS.layout;
@@ -108,13 +119,32 @@ const sechead = (kick, title) => `<div class="sechead">
 /* ===================== render ===================== */
 function render() {
   document.documentElement.lang = lang;
-  document.body.className = `lay-${layout()} lang-${language()}` + (lang === "bn" ? " bn" : "");
+  // keep any fx-* classes: paint() owns those, render() owns layout and language
+  const keep = [...document.body.classList].filter(c => c.indexOf("fx-") === 0);
+  document.body.className = [`lay-${layout()}`, `lang-${language()}`,
+    lang === "bn" ? "bn" : "", ...keep].filter(Boolean).join(" ");
 
   $("tbMark").innerHTML = logoSVG(S);
   $("tbName").innerHTML = `${esc(S.shop_name || "")}<span>${esc(pick(S, "address") || "")}</span>`;
   $("langBtn").textContent = lang === "bn" ? "English" : "\u09AC\u09BE\u0982\u09B2\u09BE";
   $("modeBtn").textContent = mode === "night" ? t("ivory_mode") : t("night_mode");
   $("modeBtn").classList.toggle("hide", S.theme_toggle === false);
+
+  const fxLive = fxVisitor === "off" ? false : fxVisitor === "on" ? true : S.fx_on !== false;
+  const fxBtn = $("fxBtn");
+  if (fxBtn) {
+  fxBtn.classList.toggle("hide", S.fx_on === false);   // owner switched it off entirely
+  fxBtn.classList.toggle("is-off", !fxLive);
+  fxBtn.setAttribute("aria-pressed", String(fxLive));
+  fxBtn.title = fxLive ? t("fx_off_label") : t("fx_on_label");
+  fxBtn.setAttribute("aria-label", fxBtn.title);
+  fxBtn.innerHTML = fxLive
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/>
+         <circle cx="12" cy="12" r="3.2"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M4 4l16 16"/></svg>`;
+  }
 
   const bText = pick(S, "banner_text");
   $("banner").classList.toggle("hide", !(S.banner_on && bText));
@@ -251,15 +281,16 @@ function footerBlock() {
   const bits = [S.shop_name, pick(S, "address"), line3,
                 [S.phone1, S.phone2].filter(Boolean).join(" \u00B7 ")].filter(Boolean).map(esc);
   const q = encodeURIComponent(`${S.shop_name || ""} ${S.address || ""}`.trim() || "Sirajganj");
-  const mapHref = (S.map_url && S.map_url.trim())
-    ? S.map_url.trim()
-    : `https://www.google.com/maps/search/?api=1&query=${q}`;
   return `<footer><div class="wrap">
     ${lockup("sm")}
     <h2 style="font-size:26px;margin-bottom:12px">${esc(t("visit"))}</h2>
     <p>${bits.join("<br>")}</p>
-    <a class="maplink" href="${esc(mapHref)}" target="_blank" rel="noopener">${esc(t("map"))}</a>
+    <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${q}">${esc(t("map"))}</a>
     <p class="fine">${esc(S.email || "")}</p>
+    ${S.show_admin_link === false ? "" : `<div><a class="adminlink" href="admin.html" rel="nofollow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round"><rect x="4" y="10" width="16" height="10" rx="2"/>
+        <path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>${esc(t("shop_login"))}</a></div>`}
   </div></footer>`;
 }
 
@@ -301,7 +332,7 @@ function viewThread() {
     <section class="catalogue" id="collection"><div class="wrap">
       ${sechead(t("on_counter"), t("collection"))}
       ${filtersHTML()}
-      ${list.length ? `<div class="thread"></div><div class="beads">${beads}</div>
+      ${list.length ? `<div class="beads"><div class="thread"></div>${beads}</div>
         <p class="catnote">${esc(t("cat_note"))}</p>`
         : `<p class="emptymsg">${esc(t("no_items"))}</p>`}
     </div></section>
@@ -545,6 +576,12 @@ addEventListener("scroll", () => {
 }, { passive: true });
 $("langBtn").addEventListener("click", () => { setLang(lang === "bn" ? "en" : "bn"); render(); });
 $("modeBtn").addEventListener("click", toggleMode);
+if ($("fxBtn")) $("fxBtn").addEventListener("click", () => {
+  const live = fxVisitor === "off" ? false : fxVisitor === "on" ? true : S.fx_on !== false;
+  fxVisitor = live ? "off" : "on";
+  localStorage.setItem("mj_fx", fxVisitor);
+  paint(); render();
+});
 document.addEventListener("click", e => {
   const a = e.target.closest("[data-track]");
   if (a && a.dataset.track) track("product", Number(a.dataset.track));

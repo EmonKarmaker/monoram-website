@@ -5,24 +5,12 @@
 export const CFG = window.CONFIG || {};
 export const configured = !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY);
 
-function cleanUrl(raw) {
-  let url = String(raw || "").trim().replace(/["']/g, "");   // trim + strip stray quotes
-  url = url.replace(/\/+$/, "");                              // strip trailing slash(es)
-  url = url.replace(/\/rest\/v1$/, "");                       // strip a trailing /rest/v1
-  url = url.replace(/\/+$/, "");                              // strip any slash left behind
-  if (!/^https:\/\//.test(url))
-    console.warn("[Monoram] SUPABASE_URL in config.js should start with https:// — got:", raw);
-  if (!/\.supabase\.co/.test(url))
-    console.warn("[Monoram] SUPABASE_URL in config.js should contain .supabase.co — got:", raw);
-  return url;
-}
-
 let _sb = null;
 export async function db() {
   if (!configured) return null;
   if (_sb) return _sb;
   const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
-  _sb = createClient(cleanUrl(CFG.SUPABASE_URL), CFG.SUPABASE_KEY);
+  _sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
   return _sb;
 }
 
@@ -88,6 +76,9 @@ const D = {
   bhori:["Bhori","\u09AD\u09B0\u09BF"], ana:["Ana","\u0986\u09A8\u09BE"],
   ratti:["Ratti","\u09B0\u09A4\u09CD\u09A4\u09BF"], gram:["Gram","\u0997\u09CD\u09B0\u09BE\u09AE"],
   night_mode:["Night","\u09B0\u09BE\u09A4"], ivory_mode:["Ivory","\u09B9\u09BE\u09B2\u0995\u09BE"],
+  fx_on_label:["Background on","\u09AA\u099F\u09AD\u09C2\u09AE\u09BF \u099A\u09BE\u09B2\u09C1"],
+  fx_off_label:["Background off","\u09AA\u099F\u09AD\u09C2\u09AE\u09BF \u09AC\u09A8\u09CD\u09A7"],
+  shop_login:["Shop login","\u09A6\u09CB\u0995\u09BE\u09A8 \u09B2\u0997\u0987\u09A8"],
   not_setup:["The site is not connected to its database yet. Add your Supabase keys to config.js.","\u09A1\u09BE\u099F\u09BE\u09AC\u09C7\u09B8 \u09B8\u0982\u09AF\u09C1\u0995\u09CD\u09A4 \u09B9\u09AF\u09BC\u09A8\u09BF\u0964"]
 };
 export const t = k => (D[k] ? D[k][lang === "bn" ? 1 : 0] : k);

@@ -242,7 +242,6 @@ input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
           <div class="field"><label for="s_p2">Phone 2</label><input id="s_p2" type="text"></div>
           <div class="field"><label for="s_wa">WhatsApp number</label><input id="s_wa" type="text" placeholder="8801762436392"></div>
           <div class="field"><label for="s_email">Email</label><input id="s_email" type="email"></div>
-          <div class="field"><label for="s_map">Google Maps link</label><input id="s_map" type="url" placeholder="https://maps.app.goo.gl/…"></div>
         </div>
       </div>
 
@@ -310,6 +309,51 @@ input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
         <div id="lookMsg"></div>
       </div>
     </div>
+
+
+      <div class="panel">
+        <h2>Background effects</h2>
+        <p class="hint">Movement behind the page. Each one can be switched off on its own.
+          All of it stops when the visitor looks away, thins out on small phones, and turns
+          itself off for anyone whose phone is set to reduce motion.</p>
+
+        <div class="check"><input id="x_on" type="checkbox">
+          <label for="x_on" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">
+            <b>Show background effects</b> &mdash; the master switch</label></div>
+
+        <div class="field" style="max-width:280px"><label for="x_density">How much</label>
+          <select id="x_density">
+            <option value="low">A little</option>
+            <option value="normal">Normal</option>
+            <option value="high">A lot</option>
+          </select></div>
+
+        <h3 style="font-family:Marcellus,serif;font-weight:400;font-size:15px;margin:20px 0 4px">Night mode &mdash; stars</h3>
+        <div class="check"><input id="x_twinkle" type="checkbox"><label for="x_twinkle" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Twinkle &mdash; stars slowly fade in and out</label></div>
+        <div class="check"><input id="x_drift" type="checkbox"><label for="x_drift" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Drift &mdash; the sky shifts as the finger moves</label></div>
+        <div class="check"><input id="x_glow" type="checkbox"><label for="x_glow" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Glow &mdash; stars brighten near the finger</label></div>
+        <div class="check"><input id="x_shooting" type="checkbox"><label for="x_shooting" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Shooting star &mdash; one crosses now and then</label></div>
+
+        <h3 style="font-family:Marcellus,serif;font-weight:400;font-size:15px;margin:20px 0 4px">Ivory mode</h3>
+        <div class="check"><input id="x_web" type="checkbox"><label for="x_web" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Filigree web &mdash; fine gold points joined by hairlines, reaching toward the finger</label></div>
+        <div class="check"><input id="x_grain" type="checkbox"><label for="x_grain" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">Paper grain &mdash; fine texture, no movement</label></div>
+
+        <h3 style="font-family:Marcellus,serif;font-weight:400;font-size:15px;margin:20px 0 4px">Admin button</h3>
+        <div class="check"><input id="x_adminlink" type="checkbox">
+          <label for="x_adminlink" style="margin:0;letter-spacing:normal;text-transform:none;font-size:13.5px">
+            Show a &ldquo;Shop login&rdquo; button in the website footer</label></div>
+        <p class="hint" style="margin:6px 0 0">Visitors also get their own small switch beside the
+          Night / Ivory button, so anyone can turn the movement off for themselves. If you switch
+          effects off above, that button disappears too.</p>
+        <p class="hint" style="margin:6px 0 0">Handy for you, but it also tells every visitor that an
+          admin page exists. Your password still protects it. Untick this and reach the page by
+          typing <b>/admin.html</b> or saving it as a bookmark.</p>
+
+        <div class="actions" style="margin-top:16px">
+          <button class="btn dark" id="saveFx" type="button" style="width:auto">Save effects</button>
+        </div>
+        <div id="fxMsg"></div>
+      </div>
 
     <!-- ---------- FESTIVAL ---------- -->
     <div id="tab-fest" class="hide">

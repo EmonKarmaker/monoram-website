@@ -121,6 +121,48 @@ back the next day. It disappears by itself after the end date.
 
 **Visitors** — opens today, last 7 days, all time, enquiry taps, most-looked-at pieces.
 
+
+## Background effects
+
+**Night mode** gets the star field from your printed night card, brought to life. Four
+behaviours, each with its own switch in **Look → Background effects**:
+
+- *Twinkle* — stars slowly fade in and out
+- *Drift* — the sky shifts as a finger moves across the screen, giving a sense of depth
+- *Glow* — stars brighten near the finger
+- *Shooting star* — one crosses the screen every ten seconds or so
+
+**Ivory mode** gets something different, because loose specks do not work on a pale
+background — they read as dust on the screen:
+
+- *Filigree web* — fine gold points joined by hairlines, drifting slowly. When a finger
+  moves near, the points lean toward it and the lines brighten, so the page visibly
+  answers the touch. Lines show clearly on cream where scattered dots did not.
+- *Paper grain* — a fine warm texture, no movement at all
+
+There is a master switch and a **how much** setting (a little / normal / a lot).
+
+Three things happen automatically, so this never becomes a burden on a customer's phone:
+the animation **stops completely** when the page is not being looked at, the number of
+particles is **cut right down on small screens**, and everything **freezes into a still
+picture** for anyone whose phone is set to reduce motion.
+
+## The visitor's own switch
+
+Beside the Night / Ivory button there is a small sun icon. Any visitor can tap it to turn
+the movement off for themselves, and their phone remembers the choice. If you switch
+effects off in admin, that button disappears as well.
+
+## The Shop login button
+
+A **Shop login** button sits in the website footer and opens the admin page. You can turn
+it off in **Look → Background effects → Admin button**.
+
+Worth knowing: a visible button also tells every visitor that an admin page exists. Your
+password still protects it, and the page is marked so search engines do not list it. But
+if you would rather nobody saw it, untick the box and reach the page by typing
+**/admin.html** after your web address, or save it as a bookmark on your phone.
+
 ## Night and ivory
 
 Both palettes are taken from your printed cards — the near-black "night" card and the
@@ -145,6 +187,7 @@ button label unreadable, the code corrects it before it reaches the screen.
 | `admin.html`, `admin.js` | your admin page |
 | `lib.js` | shared code, Bengali translations, the Monoram wordmark |
 | `theme.js` | palettes, layouts, and the generated ornament |
+| `ambient.js` | the star field and the ivory effects |
 | `marks.js` | the thirteen logo marks and the wordmark, as vectors |
 | `config.js` | **the only file you edit** |
 | `setup.sql` | run once in Supabase |

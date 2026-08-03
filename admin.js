@@ -35,29 +35,12 @@ function enter(user) {
   $("userEmail").textContent = user.email || "";
   loadAll();
 }
-function authHint(error) {
-  const raw = error?.message || "Unknown error";
-  const status = error?.status, code = error?.code || "", m = raw.toLowerCase();
-  let plain;
-  if (code === "PGRST125" || m.includes("invalid path"))
-    plain = "The website is pointing at the wrong address. Check SUPABASE_URL in config.js — it should end in .supabase.co and nothing more.";
-  else if (m.includes("invalid api key") || status === 401)
-    plain = "The key in config.js is not correct. Copy the publishable (or anon) key again from Supabase, Project Settings, API Keys.";
-  else if (m.includes("invalid login credentials"))
-    plain = "That email or password is not right.";
-  else if (m.includes("failed to fetch") || m.includes("network") || m.includes("load failed"))
-    plain = "Cannot reach the database. Check your internet connection.";
-  else
-    plain = "Sign-in failed.";
-  return `${esc(plain)}<small style="display:block;margin-top:.4em;opacity:.7">${esc(raw)}</small>`;
-}
-
 $("loginBtn").addEventListener("click", async () => {
   const b = $("loginBtn"); b.disabled = true;
   const { data, error } = await SB.auth.signInWithPassword({
     email: $("email").value.trim(), password: $("pw").value });
   b.disabled = false;
-  if (error) return msg($("loginMsg"), authHint(error), "err");
+  if (error) return msg($("loginMsg"), esc(error.message), "err");
   enter(data.user);
 });
 $("pw").addEventListener("keydown", e => { if (e.key === "Enter") $("loginBtn").click(); });
@@ -232,7 +215,7 @@ const F = {
   s_banner:"banner_text", s_banner_bn:"banner_text_bn", s_name:"shop_name", s_tagline:"tagline",
   s_addr:"address", s_addr_bn:"address_bn", s_hours:"hours", s_hours_bn:"hours_bn",
   s_closed:"closed_day", s_closed_bn:"closed_day_bn",
-  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email", s_map:"map_url"
+  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email"
 };
 const C = { s_banner_on:"banner_on", s_hall:"show_hallmark", s_slip:"show_slip",
             s_exch:"show_exchange", s_rep:"show_repair", s_bajus:"bajus_member" };
@@ -245,6 +228,7 @@ async function loadShop() {
   Object.entries(F).forEach(([el, col]) => { $(el).value = SETTINGS[col] ?? ""; });
   Object.entries(C).forEach(([el, col]) => { $(el).checked = !!SETTINGS[col]; });
   fillLook(SETTINGS);
+  fillFx(SETTINGS);
 }
 $("saveShop").addEventListener("click", async () => {
   const b = $("saveShop"); b.disabled = true;
@@ -388,6 +372,27 @@ $("saveLook").addEventListener("click", async () => {
 });
 $("resetLook").addEventListener("click", () => {
   fillLook({}); msg($("lookMsg"), "Back to the original. Press Save look to apply.");
+});
+
+
+/* ===================== background effects ===================== */
+const FXBOOL = { x_on:"fx_on", x_twinkle:"fx_twinkle", x_drift:"fx_drift", x_glow:"fx_glow",
+  x_shooting:"fx_shooting", x_web:"fx_web", x_grain:"fx_grain",
+  x_adminlink:"show_admin_link" };
+
+function fillFx(sv) {
+  Object.entries(FXBOOL).forEach(([el, col]) => { $(el).checked = sv[col] !== false; });
+  $("x_density").value = sv.fx_density || "normal";
+}
+$("saveFx").addEventListener("click", async () => {
+  const b = $("saveFx"); b.disabled = true;
+  const row = { id: 1, updated_at: new Date().toISOString(), fx_density: $("x_density").value };
+  Object.entries(FXBOOL).forEach(([el, col]) => { row[col] = $(el).checked; });
+  const { error } = await SB.from("settings").upsert(row);
+  b.disabled = false;
+  if (error) return msg($("fxMsg"), esc(error.message), "err");
+  Object.assign(SETTINGS, row);
+  msg($("fxMsg"), "Saved. The website is updated.");
 });
 
 /* ===================== festival cards ===================== */

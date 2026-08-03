@@ -12,10 +12,10 @@
   --bn:"Noto Sans Bengali","Poppins",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-html{overflow-x:hidden}
-body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);font-weight:300;
-  line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:74px;
-  transition:background .3s,color .3s}
+html{overflow-x:hidden;background:var(--bg);transition:background .3s}
+body{margin:0;overflow-x:hidden;background:transparent;color:var(--text);font-family:var(--sans);
+  font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:74px;
+  transition:color .3s}
 body.bn{font-family:var(--bn)}
 .wrap{max-width:980px;margin:0 auto;padding:0 20px}
 h1,h2,h3{font-family:var(--serif);font-weight:300;margin:0}
@@ -92,12 +92,13 @@ body.bn .kick{letter-spacing:.06em;text-transform:none;font-size:12px}
 .emptymsg{padding:34px 0;text-align:center;color:var(--mute);font-size:13px}
 
 /* ---------- rate ---------- */
-.band{background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  padding:42px 0;position:relative;overflow:hidden}
+.band{background:color-mix(in srgb,var(--panel) 82%,transparent);border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);padding:42px 0;position:relative;overflow:hidden;
+  backdrop-filter:blur(2px)}
 .band .wrap{position:relative;z-index:1}
 .bandgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;
-  background:var(--line);border:1px solid var(--line)}
-.bcell{background:var(--panel);padding:19px 14px;text-align:center}
+  background:var(--line);border:1px solid var(--line);overflow:hidden}
+.bcell{background:transparent;padding:19px 14px;text-align:center}
 .bcell .k{margin:0;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
 body.bn .bcell .k{letter-spacing:normal;text-transform:none;font-size:12px}
 .bcell .v{font-family:var(--serif);font-size:26px;color:var(--accent-soft);margin:7px 0 0;
@@ -119,7 +120,8 @@ body.bn .bcell .v{font-family:var(--bn);font-size:21px}
 .tools{padding:46px 0;border-bottom:1px solid var(--line)}
 .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:760px){.toolgrid{grid-template-columns:1fr}}
-.tool{background:var(--panel);border:1px solid var(--line);padding:20px 18px}
+.tool{background:color-mix(in srgb,var(--panel) 80%,transparent);border:1px solid var(--line);
+  padding:20px 18px;backdrop-filter:blur(2px)}
 .tool h3{font-size:19px;margin-bottom:14px}
 .field{margin-bottom:11px}
 label{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
@@ -147,7 +149,8 @@ input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline
 .tgrid p{margin:0;font-size:11.5px;color:var(--mute)}
 .bajus{margin-top:24px;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);
   border:1px solid var(--accent-line);background:var(--accent-tint);border-radius:99px;padding:8px 16px}
-footer{background:var(--panel);border-top:1px solid var(--line);padding:40px 0 36px;text-align:center}
+footer{background:color-mix(in srgb,var(--panel) 82%,transparent);border-top:1px solid var(--line);
+  padding:40px 0 36px;text-align:center;backdrop-filter:blur(2px)}
 footer .lock{margin-bottom:16px}
 footer p{margin:0;font-size:13px;color:var(--mute);line-height:1.9}
 .maplink{display:inline-block;margin-top:14px;font-size:12px;color:var(--accent);text-decoration:none;
@@ -174,8 +177,9 @@ body .orn{width:200px;line-height:0}
 body.lang-minimal .orn{display:none}
 
 /* ================= LAYOUT: gold thread ================= */
-.lay-thread .hero{padding:96px 20px 40px;text-align:center;position:relative;overflow:hidden;
-  background:radial-gradient(110% 80% at 50% 0%,var(--hero-top) 0%,var(--bg) 60%)}
+.lay-thread .hero{padding:96px 20px 40px;text-align:center;position:relative;overflow:hidden}
+.lay-thread .hero::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(110% 80% at 50% 0%,var(--hero-top) 0%,transparent 62%);opacity:.75}
 .lay-thread .hero .orn.bl{left:-6%;bottom:-10%;width:min(38vw,280px);opacity:.9}
 .lay-thread .hero .orn.tr{right:-6%;top:-10%;width:min(38vw,280px);transform:rotate(180deg);opacity:.9}
 .lay-thread .hero h1{font-size:clamp(25px,5.2vw,42px);line-height:1.18;margin:26px auto 0;max-width:18ch;position:relative}
@@ -186,8 +190,9 @@ body.lang-minimal .orn{display:none}
 .lay-thread .pill .l{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 .lay-thread .pill .v{font-size:18px;font-weight:500;color:var(--accent-soft);font-variant-numeric:tabular-nums}
 .lay-thread .catalogue{padding:48px 0 20px;position:relative}
-.lay-thread .thread{position:absolute;left:50%;top:120px;bottom:40px;width:1px;
-  background:linear-gradient(var(--accent),var(--line));opacity:.55}
+.lay-thread .thread{position:absolute;left:50%;top:22px;bottom:22px;width:1px;
+  background:linear-gradient(transparent,var(--accent) 12%,var(--accent) 88%,transparent);
+  opacity:.5;pointer-events:none}
 .lay-thread .beads{position:relative;display:flex;flex-direction:column;gap:22px;margin-top:26px}
 .lay-thread .bead{display:grid;grid-template-columns:1fr 24px 1fr;align-items:center;gap:12px}
 .lay-thread .bead .node{order:2;width:9px;height:9px;background:var(--accent);transform:rotate(45deg);margin:0 auto}
@@ -204,7 +209,7 @@ body.lang-minimal .orn{display:none}
 .lay-thread .bead .ask{display:inline-block;margin-top:7px;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
 @media(max-width:700px){
-  .lay-thread .thread{left:26px}
+  .lay-thread .thread{left:12px}
   .lay-thread .bead{grid-template-columns:24px 1fr;gap:10px}
   .lay-thread .bead .node{order:1}
   .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{order:2;justify-content:flex-start}
@@ -241,8 +246,9 @@ body.lang-minimal .orn{display:none}
 
 /* ================= LAYOUT: ornate ================= */
 .lay-ornate .hero{position:relative;min-height:84vh;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;text-align:center;padding:90px 20px 46px;overflow:hidden;
-  background:radial-gradient(120% 90% at 50% 0%,var(--hero-top) 0%,var(--bg) 62%)}
+  align-items:center;justify-content:center;text-align:center;padding:90px 20px 46px;overflow:hidden}
+.lay-ornate .hero::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(120% 90% at 50% 0%,var(--hero-top) 0%,transparent 64%);opacity:.75}
 .lay-ornate .hero .orn.bl{left:-5%;bottom:-8%;width:min(44vw,330px)}
 .lay-ornate .hero .orn.tr{right:-5%;top:-8%;width:min(44vw,330px);transform:rotate(180deg)}
 .lay-ornate .hero .halo{position:absolute;border:1px solid var(--halo-1);border-radius:50%;
@@ -295,3 +301,37 @@ body.lang-minimal .orn{display:none}
   font-family:inherit;font-size:12.5px;color:var(--mute);cursor:pointer}
 .fchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--btn-text)}
 .fchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ================= AMBIENT BACKGROUND EFFECTS ================= */
+#fxCanvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;display:block}
+/* lift page content above the canvas without flattening anything that already
+   has its own stacking order (the sticky header and the call bar) */
+body > *:not(.fxlayer){position:relative;z-index:1}
+/* the blanket rule above must not undo the two bars that are pinned to the screen */
+body > .topbar{position:fixed;z-index:50}
+body > .bar{position:fixed;z-index:45}
+body > .banner,body > .fest{z-index:3}
+
+
+/* ivory: fine warm grain, so the background reads as paper rather than blank screen */
+body.fx-grain::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.42;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0.12'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply}
+
+
+
+
+/* footer admin link */
+.adminlink{display:inline-flex;align-items:center;gap:7px;margin-top:20px;
+  border:1px solid var(--line);color:var(--mute);background:transparent;
+  font-family:inherit;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+  padding:9px 17px;border-radius:99px;text-decoration:none;transition:.18s}
+body.bn .adminlink{letter-spacing:normal;text-transform:none;font-size:12.5px}
+.adminlink:hover{border-color:var(--accent-line);color:var(--accent)}
+.adminlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.adminlink svg{width:12px;height:12px;flex:none}
+
+/* the visitor's own background switch, beside the night/ivory button */
+.cbtn-icon{padding:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center}
+.cbtn-icon svg{width:16px;height:16px;display:block}
+.cbtn-icon.is-off{color:var(--mute);border-color:var(--line)}

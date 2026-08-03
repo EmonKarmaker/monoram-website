@@ -18,7 +18,6 @@ create table if not exists public.settings (
   phone2         text,
   whatsapp       text,
   email          text,
-  map_url        text,                     -- Google Maps place link for "Find us on the map"
   hours          text,
   hours_bn       text,
   closed_day     text,
@@ -40,6 +39,16 @@ create table if not exists public.settings (
   theme_accent_override text,
   theme_default   text default 'night',     -- night | ivory
   theme_toggle    boolean default true,
+  -- ----- background effects -----
+  fx_on           boolean default true,
+  fx_density      text default 'normal',    -- low | normal | high
+  fx_twinkle      boolean default true,     -- night: stars fade in and out
+  fx_drift        boolean default true,     -- night: field shifts with the finger
+  fx_glow         boolean default true,     -- night: stars brighten near the finger
+  fx_shooting     boolean default true,     -- night: occasional shooting star
+  fx_web          boolean default true,     -- ivory: filigree web that reaches for the finger
+  fx_grain        boolean default true,     -- ivory: fine paper texture
+  show_admin_link boolean default true,     -- "Shop login" button in the footer
   updated_at     timestamptz default now(),
   constraint settings_single_row check (id = 1)
 );
