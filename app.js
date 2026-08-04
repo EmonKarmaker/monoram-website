@@ -280,12 +280,12 @@ function footerBlock() {
   const line3 = [hrs, closed ? `${t("closed")}: ${closed}` : ""].filter(Boolean).join(" \u00B7 ");
   const bits = [S.shop_name, pick(S, "address"), line3,
                 [S.phone1, S.phone2].filter(Boolean).join(" \u00B7 ")].filter(Boolean).map(esc);
-  const q = encodeURIComponent(`${S.shop_name || ""} ${S.address || ""}`.trim() || "Sirajganj");
+  const mapUrl = S.map_url || "https://maps.app.goo.gl/gYMx4zU31RED2Xxt6";
   return `<footer><div class="wrap">
     ${lockup("sm")}
     <h2 style="font-size:26px;margin-bottom:12px">${esc(t("visit"))}</h2>
     <p>${bits.join("<br>")}</p>
-    <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${q}">${esc(t("map"))}</a>
+    <a class="maplink" href="${esc(mapUrl)}" target="_blank" rel="noopener">${esc(t("map"))}</a>
     <p class="fine">${esc(S.email || "")}</p>
     ${S.show_admin_link === false ? "" : `<div><a class="adminlink" href="admin.html" rel="nofollow">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
