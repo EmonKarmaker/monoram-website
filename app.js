@@ -280,7 +280,11 @@ function footerBlock() {
   const line3 = [hrs, closed ? `${t("closed")}: ${closed}` : ""].filter(Boolean).join(" \u00B7 ");
   const bits = [S.shop_name, pick(S, "address"), line3,
                 [S.phone1, S.phone2].filter(Boolean).join(" \u00B7 ")].filter(Boolean).map(esc);
-  const mapUrl = S.map_url || "https://maps.app.goo.gl/gYMx4zU31RED2Xxt6";
+  /* Monoram Jewellers on Google Maps: the store's own listing, not an area search.
+     ftid is the place's permanent id, so the pin stays on the shop. */
+  const mapUrl = S.map_url || "https://www.google.com/maps/place/Monoram+Jewellers/" +
+    "@24.4586908,89.7041104,19z/data=!4m6!3m5!1s0x39fdeb526f3db25f:0x3be9b3800c1c45d1" +
+    "!8m2!3d24.4586908!4d89.7041104";
   return `<footer><div class="wrap">
     ${lockup("sm")}
     <h2 style="font-size:26px;margin-bottom:12px">${esc(t("visit"))}</h2>
