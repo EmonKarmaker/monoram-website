@@ -208,14 +208,26 @@ body.lang-minimal .orn{display:none}
 .lay-thread .bead .price{margin:6px 0 0;font-family:var(--serif);font-size:25px}
 .lay-thread .bead .ask{display:inline-block;margin-top:7px;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
+/* phones: one horizontal card per item — thread + diamond, then photo, then text.
+   No alternating here; left/right is a desktop effect only. */
 @media(max-width:700px){
   .lay-thread .thread{left:12px}
-  .lay-thread .bead{grid-template-columns:24px 1fr;gap:10px}
-  .lay-thread .bead .node{order:1}
-  .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{order:2;justify-content:flex-start}
-  .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{order:3;grid-column:2;text-align:left}
-  .lay-thread .bead .ph{width:110px}
-  .lay-thread .bead h3{font-size:20px}.lay-thread .bead .price{font-size:19px}
+  .lay-thread .beads{gap:18px}
+  /* col 1 stays 24px so the diamond keeps sitting on the thread at left:12px */
+  .lay-thread .bead{grid-template-columns:24px 40% minmax(0,1fr);gap:11px;align-items:center}
+  /* every item needs an explicit order AND column, or a photo drops into the thread column */
+  .lay-thread .bead .node,.lay-thread .bead:nth-child(odd) .node,.lay-thread .bead:nth-child(even) .node{order:1;grid-column:1}
+  .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{order:2;grid-column:2;justify-content:flex-start}
+  .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{order:3;grid-column:3;text-align:left;overflow-wrap:break-word}
+  .lay-thread .bead .ph{width:100%;max-width:none}
+  .lay-thread .bead h3{font-size:18px;line-height:1.25}
+  .lay-thread .bead .m{margin-top:5px;font-size:10.5px;letter-spacing:.13em}
+  .lay-thread .bead .w{margin-top:6px;font-size:12.5px}
+  .lay-thread .bead .price{margin-top:6px;font-size:21px}
+  .lay-thread .bead .price.req{font-size:14px}
+  .lay-thread .bead .ask{margin-top:8px;font-size:10.5px;letter-spacing:.12em}
+  body.bn .lay-thread .bead .m{letter-spacing:normal;text-transform:none;font-size:12px}
+  body.bn .lay-thread .bead .ask{letter-spacing:normal;text-transform:none;font-size:12px}
 }
 
 /* ================= LAYOUT: invitation ================= */
