@@ -18,6 +18,7 @@ create table if not exists public.settings (
   phone2         text,
   whatsapp       text,
   email          text,
+  map_url        text,                      -- footer map link; blank = the built-in shop pin
   hours          text,
   hours_bn       text,
   closed_day     text,

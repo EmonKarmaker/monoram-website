@@ -12,6 +12,23 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g,
   c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const taka = n => "\u09F3" + Math.round(n).toLocaleString("en-IN");
 
+/* The database can be older than this copy of the website \u2014 a column the page
+   saves may simply not exist yet. Supabase reports that as PGRST204 / "schema
+   cache". Say what to do about it instead of showing the raw error. */
+const missingColumn = err => {
+  const m = String((err && err.message) || "");
+  return (err && err.code === "PGRST204") || /schema cache/i.test(m) ||
+         /could not find the .* column/i.test(m);
+};
+function saveError(el, err) {
+  if (!missingColumn(err)) return msg(el, esc((err && err.message) || String(err)), "err");
+  msg(el,
+    "<b>Your database is one step behind this page.</b><br>" +
+    "Open Supabase &rarr; SQL Editor, paste in the file <b>patch.sql</b> from your website folder " +
+    "and press Run. Then reload this page and save again.<br>" +
+    `<span style="opacity:.7">Details: ${esc((err && err.message) || "")}</span>`, "err");
+}
+
 let SB = null;
 
 if (!configured) {
@@ -237,7 +254,7 @@ $("saveShop").addEventListener("click", async () => {
   Object.entries(C).forEach(([el, col]) => { row[col] = $(el).checked; });
   const { error } = await SB.from("settings").upsert(row);
   b.disabled = false;
-  if (error) return msg($("shopMsg"), esc(error.message), "err");
+  if (error) return saveError($("shopMsg"), error);
   Object.assign(SETTINGS, row);
   msg($("shopMsg"), "Saved. The website is updated.");
 });
@@ -366,7 +383,7 @@ $("saveLook").addEventListener("click", async () => {
   const row = Object.assign({ id: 1, updated_at: new Date().toISOString() }, LOOK);
   const { error } = await SB.from("settings").upsert(row);
   b.disabled = false;
-  if (error) return msg($("lookMsg"), esc(error.message), "err");
+  if (error) return saveError($("lookMsg"), error);
   Object.assign(SETTINGS, row);
   msg($("lookMsg"), "Saved. The website looks like this now.");
 });
@@ -390,7 +407,7 @@ $("saveFx").addEventListener("click", async () => {
   Object.entries(FXBOOL).forEach(([el, col]) => { row[col] = $(el).checked; });
   const { error } = await SB.from("settings").upsert(row);
   b.disabled = false;
-  if (error) return msg($("fxMsg"), esc(error.message), "err");
+  if (error) return saveError($("fxMsg"), error);
   Object.assign(SETTINGS, row);
   msg($("fxMsg"), "Saved. The website is updated.");
 });
