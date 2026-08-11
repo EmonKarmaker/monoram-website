@@ -37,24 +37,93 @@ again if you are unsure; nothing is lost either way.
 
 ---
 
-## Step 2 — Send the new website files up
+## Step 2 — Send the new website files up to cPanel
 
-1. On your computer, open the website folder.
-2. Commit everything and push it to **master**:
+The site is plain HTML, CSS and JavaScript. There is nothing to "build" —
+the files you have are the files the server needs. You are only copying
+them into place.
 
-   ```
-   git add -A
-   git commit -m "Per-gram rates, photo viewer, proprietor and Facebook"
-   git push origin master
-   ```
+### 2a. Keep a copy of what is there now
 
-**How to confirm the host picked it up:** open your host's dashboard
-(Netlify / Vercel / Cloudflare Pages — whichever you used) and look at the
-**Deploys** list. The newest entry should show today's date and the words
-**Published** or **Ready**, in green. If it says **Failed**, tap it and read
-the log; the most common cause is a file that did not get committed.
+1. Sign in to cPanel and open **File Manager**.
+2. Double-click into **public_html**.
+3. Press **Select All**, then **Compress** in the top bar.
+4. Choose **Zip Archive**, name it `backup-before-update.zip`, press
+   **Compress File(s)**.
+5. Drag that zip somewhere outside `public_html` — the level above is fine.
 
-Give it about a minute after it goes green before checking your phone.
+**What you should see:** a file called `backup-before-update.zip`. If the
+update goes wrong you can extract it and be back where you started.
+
+### 2b. Make the zip to upload
+
+On your computer, in the website folder, select these and **only** these:
+
+```
+index.html      admin.html      preview.html
+app.js          admin.js        lib.js
+viewer.js       theme.js        marks.js       ambient.js
+config.js       sw.js           styles.css
+manifest.webmanifest
+icon-192.png    icon-512.png
+.htaccess
+```
+
+Right-click → **Send to** → **Compressed (zipped) folder**. Call it
+`site.zip`.
+
+**Do NOT upload** `patch.sql`, `patch2.sql`, `patch3.sql`, `setup.sql`,
+`DEPLOY.md`, `RUN-LOCAL.md`, `SETUP.md` or the `.git` folder. Those are your
+working files. They do not belong on the public internet.
+
+> If `.htaccess` will not show up when you select files, in Windows Explorer
+> tick **View → Hidden items** first. It is important — it forces https and
+> stops phones caching the old site.
+
+### 2c. Upload and extract
+
+1. In **File Manager**, make sure you are inside **public_html**.
+2. Press **Upload** in the top bar, choose `site.zip`, wait for the green
+   **100%** bar.
+3. Go **Back to /home/…/public_html**, then press **Reload** in the top bar.
+4. Click once on `site.zip` to select it, then press **Extract** in the top
+   bar, then **Extract File(s)** in the box that appears.
+5. When it reports how many files were written, close the box.
+6. Select `site.zip` and press **Delete** — it has done its job.
+
+**What you should see:** `index.html`, `app.js`, `styles.css` and the rest
+sitting directly inside `public_html` — not inside a folder called `site`.
+If they landed in a folder, open it, **Select All**, **Move**, and move them
+up one level into `public_html`.
+
+### 2d. Check it worked
+
+Open your website address in a browser and press **Ctrl + Shift + R** to
+force a fresh load.
+
+**What you should see:** the shop, with the gold rate section now showing a
+small **per gram / per bhori** switch above the prices. That switch is the
+easiest proof that the new files are live.
+
+> **Your address must start with `https://`.** If it says "Not secure", go to
+> cPanel → **SSL/TLS Status**, tick your domain, and press **Run AutoSSL**.
+> Wait a few minutes. Without https the phone app and the offline copy will
+> not install, no matter what else you do.
+
+### The easier way, for next time
+
+cPanel can pull straight from GitHub, so you never zip anything again:
+
+1. cPanel → **Git™ Version Control** → **Create**.
+2. Tick **Clone a Repository**.
+3. **Clone URL:** `https://github.com/EmonKarmaker/monoram-website.git`
+4. **Repository Path:** `public_html` (or a folder you then point the domain at)
+5. Press **Create**.
+
+After that, each update is: push to master on your computer, then in cPanel
+open **Git Version Control → Manage → Pull or Deploy → Update from Remote**.
+
+Worth setting up once. Ask me and I will walk you through it.
 
 ---
 
@@ -101,18 +170,35 @@ privacy is included free.
 
 ### 4b. Point the domain at the website
 
-1. Still in Cloudflare, tap your new domain, then **DNS** → **Records**.
-2. Your host will have given you a target. Add what it asks for:
-   - if it gave you a **name** like `monoram.netlify.app`, add a **CNAME**
-     record, Name `@`, Target that name, Proxy status **Proxied** (orange
-     cloud);
-   - if it gave you an **IP address**, add an **A** record, Name `@`, IPv4
-     address that number, Proxy **Proxied**.
-3. Add a second record the same way with Name `www`.
-4. Go to your host's dashboard → **Domain settings** → **Add custom domain**,
-   and type your new domain there too. The host needs to know about it as well.
+Two halves: tell Cloudflare where the server is, and tell cPanel the domain
+is coming.
 
-Wait up to an hour, then open your domain in a browser. You should see the shop.
+**Find your server's address first.** In cPanel, look at the right-hand
+sidebar under **General Information** / **Statistics** for **Shared IP
+Address**. Write that number down — it looks like `192.0.2.45`.
+
+**In Cloudflare:**
+
+1. Tap your new domain, then **DNS** → **Records** → **Add record**.
+2. Type **A**, Name `@`, IPv4 address = the number from cPanel,
+   Proxy status **DNS only** (grey cloud) for now.
+3. **Add record** again: Type **A**, Name `www`, same number,
+   Proxy **DNS only**.
+
+> Leave it on the **grey** cloud until cPanel has issued your SSL
+> certificate. The orange cloud hides your server from the certificate
+> check and AutoSSL will fail. Switch it to orange afterwards if you want
+> Cloudflare's caching.
+
+**In cPanel:**
+
+4. Open **Domains** → **Create A New Domain**, type your new domain, and set
+   the document root to **public_html** (untick "share document root" if it
+   offers a subfolder and you want the domain to be the main site).
+5. Open **SSL/TLS Status**, tick the new domain, press **Run AutoSSL**.
+
+Wait up to an hour, then open your domain. You should see the shop, with a
+padlock in the address bar.
 
 ### 4c. Fill in the address, and REGENERATE THE QR CODE
 
@@ -157,6 +243,19 @@ something older (`fx_density`, `layout`, `show_admin_link`), run **patch.sql**
 first and then **patch2.sql**.
 
 Running either file twice is safe.
+
+### The site loads but has no styling, or the collection never appears
+
+Press **F12** → **Console**. If it complains about a MIME type or refuses to
+load a module, `.htaccess` did not get uploaded. Check for it in File Manager
+(press **Settings** in the top right and tick **Show Hidden Files**), and
+upload it if it is missing.
+
+### "Not secure" in the address bar, or the app will not install
+
+cPanel has not issued a certificate. Go to **SSL/TLS Status**, tick your
+domain, press **Run AutoSSL**, wait a few minutes and reload. The offline
+copy and the home-screen app will not work over plain http.
 
 ### The phone still shows the old website
 

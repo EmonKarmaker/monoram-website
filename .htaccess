@@ -1,0 +1,58 @@
+# =====================================================================
+#  Monoram Jewellers — Apache / cPanel settings
+#  Upload this file into public_html along with the website.
+#  It is not a program; it is a short list of instructions for the server.
+# =====================================================================
+
+# ---------- 1. Always use https ----------
+# The "add to home screen" app and the offline copy only work over https.
+# Over plain http the browser silently refuses to install them.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# ---------- 2. Correct file types ----------
+# Some servers do not know these by default and send them as plain text,
+# which makes the browser refuse to load them.
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType text/javascript          .js
+  AddType image/svg+xml            .svg
+</IfModule>
+
+# ---------- 3. What may be cached, and for how long ----------
+<IfModule mod_headers.c>
+  # The service worker and the pages themselves must always be re-checked,
+  # or a phone keeps serving yesterday's website forever.
+  <FilesMatch "^(sw\.js|index\.html|admin\.html|preview\.html|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # config.js holds the database address and the site address. If it is
+  # cached hard, changing the domain later will not take effect.
+  <FilesMatch "^config\.js$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ---------- 4. Keep the working files private ----------
+# The .sql files describe the database and the .md files are your own
+# notes. Neither belongs on the public internet. Best not to upload them
+# at all — this is a second lock in case one slips through.
+<IfModule mod_authz_core.c>
+  <FilesMatch "\.(sql|md)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  <FilesMatch "\.(sql|md)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>
+
+# ---------- 5. Do not list folder contents ----------
+Options -Indexes
