@@ -18,6 +18,14 @@ create table if not exists public.settings (
   phone2         text,
   whatsapp       text,
   email          text,
+  proprietor       text,                    -- shown in the footer and on the rate picture
+  proprietor_bn    text,
+  facebook_page    text,                    -- the shop's Facebook page
+  facebook_profile text,                    -- the proprietor's own profile
+  -- Which unit CUSTOMERS SEE. Not to be confused with rates.unit, which
+  -- records the unit the owner TYPED for one rate row. This is display only.
+  rate_unit      text default 'gram'        -- 'gram' | 'bhori' | 'both'
+                 check (rate_unit is null or rate_unit in ('gram','bhori','both')),
   map_url        text,                      -- footer map link; blank = the built-in shop pin
   hours          text,
   hours_bn       text,
@@ -63,6 +71,10 @@ create table if not exists public.rates (
   k21        numeric not null,
   trad       numeric not null,
   silver     numeric,
+  -- Which unit the four numbers above are written in. The owner's source
+  -- publishes per gram, so that is the default. Rows saved before this
+  -- column existed are per bhori and are marked 'bhori' by patch2.sql.
+  unit       text default 'gram' check (unit is null or unit in ('gram', 'bhori')),
   created_at timestamptz default now()
 );
 create index if not exists rates_created_idx on public.rates (created_at desc);
@@ -74,6 +86,8 @@ create table if not exists public.products (
   name_bn          text,
   category         text,
   category_bn      text,
+  blurb            text,                    -- one short line shown on the card
+  blurb_bn         text,
   karat            text,
   weight_bhori     numeric,
   price            numeric,
@@ -184,14 +198,18 @@ create policy "admin delete photos" on storage.objects for delete to authenticat
 --  No products. No rates. The shop starts empty.
 -- =====================================================================
 insert into public.settings (id, shop_name, tagline, address, phone1, phone2, whatsapp, email,
+                             proprietor, facebook_page, facebook_profile,
                              show_hallmark, show_slip, show_exchange, show_repair, bajus_member)
 values (1,
         'Monoram Jewellers',
         'Gold · Diamond · Silver · Ornaments',
         'Mujib Sarak, Sirajganj',
         '+880 1762-436392',
-        '+880 2588-830677',
-        '8801762436392',
+        '+880 2588-830677',      -- landline. Never used for WhatsApp.
+        '8801762436392',         -- WhatsApp is the mobile, ending 92.
         'rkarmaker948@gmail.com',
+        'Ratan Karmoker',
+        'https://www.facebook.com/people/Monoram-Jewellers/61592891604973/',
+        'https://www.facebook.com/roton.karmaker.737',
         true, true, true, true, true)
 on conflict (id) do nothing;

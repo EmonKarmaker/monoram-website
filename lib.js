@@ -16,6 +16,38 @@ export async function db() {
 
 export const BHORI = 11.664, ANA = BHORI/16, RATTI = BHORI/96;
 
+/* ---------------------------------------------------------------------
+   Rates: one row, two units.
+
+   The owner's source publishes per gram ("22 KARAT Gold — CADMIUM
+   (HALLMARKED GOLD) — 20,160 BDT/GRAM"), so every row saved from now on
+   is per gram and says so in its `unit` column. Rows published before
+   that column existed hold per-bhori figures and are stamped 'bhori' by
+   patch2.sql. The stored numbers are never converted — only read.
+
+   Everything that shows a rate anywhere on the site goes through
+   rateOf(). Nothing else may divide or multiply a rate by BHORI.
+   --------------------------------------------------------------------- */
+export const rateUnit = row => (row && row.unit === "bhori") ? "bhori" : "gram";
+
+/* -> { gram, bhori } for one grade, or null when that grade is blank. */
+export function rateOf(row, key) {
+  if (!row) return null;
+  const raw = row[key];
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  if (!isFinite(n)) return null;
+  return rateUnit(row) === "bhori"
+    ? { gram: n / BHORI, bhori: n }
+    : { gram: n, bhori: n * BHORI };
+}
+
+/* Per-bhori value of one grade, or null. The bhori figure stays the
+   headline everywhere, so a row published last week and one published
+   today can still be compared and charted against each other. */
+export const bhoriRate = (row, key) => { const r = rateOf(row, key); return r ? r.bhori : null; };
+export const gramRate  = (row, key) => { const r = rateOf(row, key); return r ? r.gram  : null; };
+
 const BN = ["\u09E6","\u09E7","\u09E8","\u09E9","\u09EA","\u09EB","\u09EC","\u09ED","\u09EE","\u09EF"];
 export const toBn = s => String(s).replace(/[0-9]/g, d => BN[+d]);
 export let lang = localStorage.getItem("mj_lang") === "bn" ? "bn" : "en";
@@ -40,8 +72,12 @@ const D = {
   cat_note:["Prices are set by the shop and include the making charge where shown. Anything marked \u201Cask for price\u201D depends on the design. Weights are confirmed on the scale in front of you.","\u09A6\u09BE\u09AE \u09A6\u09CB\u0995\u09BE\u09A8 \u09A5\u09C7\u0995\u09C7 \u09A0\u09BF\u0995 \u0995\u09B0\u09BE\u0964 \u0993\u099C\u09A8 \u0986\u09AA\u09A8\u09BE\u09B0 \u09B8\u09BE\u09AE\u09A8\u09C7 \u09AE\u09C7\u09B6\u09BF\u09A8\u09C7 \u09A6\u09C7\u0996\u09BE\u09A8\u09CB \u09B9\u09AF\u09BC\u0964"],
   rate_today:["Today's rate","\u0986\u099C\u0995\u09C7\u09B0 \u09A6\u09BE\u09AE"],
   effective:["Effective","\u0995\u09BE\u09B0\u09CD\u09AF\u0995\u09B0"],
+  /* Unit labels. These two keys are the ONLY place a unit is ever named.
+     Nothing may write "per gram" or "BDT/GRAM" into app.js. */
   per_bhori:["per bhori","\u09AA\u09CD\u09B0\u09A4\u09BF \u09AD\u09B0\u09BF"],
   per_gram:["per gram","\u09AA\u09CD\u09B0\u09A4\u09BF \u0997\u09CD\u09B0\u09BE\u09AE"],
+  unit_switch:["Show the price per","\u09A6\u09BE\u09AE \u09A6\u09C7\u0996\u09BE\u09A8 \u09AA\u09CD\u09B0\u09A4\u09BF"],
+  rate_used:["Rate used","\u09AF\u09C7 \u09A6\u09BE\u09AE\u09C7 \u09B9\u09BF\u09B8\u09BE\u09AC"],
   no_rate:["Today's rate has not been published yet.","\u0986\u099C\u0995\u09C7\u09B0 \u09A6\u09BE\u09AE \u098F\u0996\u09A8\u09CB \u09A6\u09C7\u0993\u09AF\u09BC\u09BE \u09B9\u09AF\u09BC\u09A8\u09BF\u0964"],
   metal_only:["Metal rate only. Making charge and VAT are added on top and depend on the design.","\u098F\u099F\u09BF \u09B6\u09C1\u09A7\u09C1 \u09B8\u09CB\u09A8\u09BE\u09B0 \u09A6\u09BE\u09AE\u0964 \u09AE\u099C\u09C1\u09B0\u09BF \u0993 \u09AD\u09CD\u09AF\u09BE\u099F \u0986\u09B2\u09BE\u09A6\u09BE\u0964"],
   step_note:["The rate holds steady until BAJUS announces a change, so the line steps rather than curves.","\u09AC\u09BE\u099C\u09C1\u09B8 \u09A8\u09A4\u09C1\u09A8 \u09A6\u09BE\u09AE \u09A8\u09BE \u09A6\u09C7\u0993\u09AF\u09BC\u09BE \u09AA\u09B0\u09CD\u09AF\u09A8\u09CD\u09A4 \u09A6\u09BE\u09AE \u098F\u0995\u0987 \u09A5\u09BE\u0995\u09C7\u0964"],
@@ -68,6 +104,10 @@ const D = {
   repair_d:["Polishing, resizing, chain repair.","\u09AA\u09B2\u09BF\u09B6, \u09AE\u09BE\u09AA \u09AC\u09A6\u09B2 \u0993 \u099A\u09C7\u0987\u09A8 \u09AE\u09C7\u09B0\u09BE\u09AE\u09A4\u0964"],
   bajus:["BAJUS member","\u09AC\u09BE\u099C\u09C1\u09B8 \u09B8\u09A6\u09B8\u09CD\u09AF"],
   visit:["Come in","\u0986\u09AE\u09BE\u09A6\u09C7\u09B0 \u09A0\u09BF\u0995\u09BE\u09A8\u09BE"],
+  /* \u09B8\u09CD\u09AC\u09A4\u09CD\u09AC\u09BE\u09A7\u09BF\u0995\u09BE\u09B0\u09C0 = proprietor */
+  proprietor:["Proprietor","\u09B8\u09CD\u09AC\u09A4\u09CD\u09AC\u09BE\u09A7\u09BF\u0995\u09BE\u09B0\u09C0"],
+  fb_page:["Our Facebook page","\u0986\u09AE\u09BE\u09A6\u09C7\u09B0 \u09AB\u09C7\u09B8\u09AC\u09C1\u0995 \u09AA\u09C7\u099C"],
+  fb_profile:["The proprietor's own Facebook profile","\u09B8\u09CD\u09AC\u09A4\u09CD\u09AC\u09BE\u09A7\u09BF\u0995\u09BE\u09B0\u09C0\u09B0 \u09A8\u09BF\u099C\u09B8\u09CD\u09AC \u09AB\u09C7\u09B8\u09AC\u09C1\u0995 \u09AA\u09CD\u09B0\u09CB\u09AB\u09BE\u0987\u09B2"],
   call_shop:["Call the shop","\u09AB\u09CB\u09A8 \u0995\u09B0\u09C1\u09A8"],
   whatsapp:["WhatsApp","\u09B9\u09CB\u09AF\u09BC\u09BE\u099F\u09B8\u0985\u09CD\u09AF\u09BE\u09AA"],
   map:["Find us on the map","\u09AE\u09CD\u09AF\u09BE\u09AA\u09C7 \u09A6\u09C7\u0996\u09C1\u09A8"],
@@ -79,6 +119,13 @@ const D = {
   fx_on_label:["Background on","\u09AA\u099F\u09AD\u09C2\u09AE\u09BF \u099A\u09BE\u09B2\u09C1"],
   fx_off_label:["Background off","\u09AA\u099F\u09AD\u09C2\u09AE\u09BF \u09AC\u09A8\u09CD\u09A7"],
   shop_login:["Shop login","\u09A6\u09CB\u0995\u09BE\u09A8 \u09B2\u0997\u0987\u09A8"],
+  /* photo viewer */
+  view_photo:["Tap to see the photograph larger","\u099B\u09AC\u09BF\u099F\u09BF \u09AC\u09A1\u09BC \u0995\u09B0\u09C7 \u09A6\u09C7\u0996\u09A4\u09C7 \u099A\u09BE\u09AA \u09A6\u09BF\u09A8"],
+  close:["Close","\u09AC\u09A8\u09CD\u09A7 \u0995\u09B0\u09C1\u09A8"],
+  zoom_in:["Zoom in","\u09AC\u09A1\u09BC \u0995\u09B0\u09C1\u09A8"],
+  zoom_out:["Zoom out","\u099B\u09CB\u099F \u0995\u09B0\u09C1\u09A8"],
+  prev_photo:["Previous piece","\u0986\u0997\u09C7\u09B0 \u0997\u09B9\u09A8\u09BE"],
+  next_photo:["Next piece","\u09AA\u09B0\u09C7\u09B0 \u0997\u09B9\u09A8\u09BE"],
   not_setup:["The site is not connected to its database yet. Add your Supabase keys to config.js.","\u09A1\u09BE\u099F\u09BE\u09AC\u09C7\u09B8 \u09B8\u0982\u09AF\u09C1\u0995\u09CD\u09A4 \u09B9\u09AF\u09BC\u09A8\u09BF\u0964"]
 };
 export const t = k => (D[k] ? D[k][lang === "bn" ? 1 : 0] : k);

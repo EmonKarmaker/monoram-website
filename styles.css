@@ -83,6 +83,10 @@ body.bn .tag{letter-spacing:normal;text-transform:none;font-size:10px}
 .is-sold .ph img{filter:grayscale(1);opacity:.5}
 .price{font-variant-numeric:tabular-nums}
 .price.req{color:var(--accent);font-size:13px}
+/* the owner's one-line description, never more than two lines on a card */
+.blurb{margin:7px 0 0;font-size:12px;line-height:1.6;color:var(--mute);
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+  overflow:hidden;overflow-wrap:break-word}
 .kick{margin:0;font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
 body.bn .kick{letter-spacing:.06em;text-transform:none;font-size:12px}
 .sechead{text-align:center;margin-bottom:26px}
@@ -104,7 +108,19 @@ body.bn .bcell .k{letter-spacing:normal;text-transform:none;font-size:12px}
 .bcell .v{font-family:var(--serif);font-size:26px;color:var(--accent-soft);margin:7px 0 0;
   font-variant-numeric:tabular-nums}
 body.bn .bcell .v{font-family:var(--bn);font-size:21px}
-.bcell .g{font-size:10.5px;color:var(--mute);margin:3px 0 0}
+/* the visitor's own gram / bhori switch, sitting with the rate */
+.unitsw{display:flex;gap:7px;justify-content:center;margin:0 0 18px}
+.uchip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:6px 15px;
+  font-family:inherit;font-size:11.5px;color:var(--mute);cursor:pointer;line-height:1.4}
+.uchip[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--accent-line);
+  color:var(--accent)}
+.uchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bcell .u{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);
+  margin:2px 0 0;opacity:.8}
+body.bn .bcell .u{letter-spacing:normal;text-transform:none;font-size:11px}
+.bcell .g{font-size:11px;color:var(--mute);margin:6px 0 0;padding-top:6px;
+  border-top:1px solid var(--line);display:inline-block}
 .bcell .d{font-size:10.5px;margin:5px 0 0}
 .bcell .d.down{color:var(--down)}.bcell .d.up{color:var(--up)}
 .chartwrap{margin:26px auto 0;max-width:640px}
@@ -155,12 +171,31 @@ footer .lock{margin-bottom:16px}
 footer p{margin:0;font-size:13px;color:var(--mute);line-height:1.9}
 .maplink{display:inline-block;margin-top:14px;font-size:12px;color:var(--accent);text-decoration:none;
   border-bottom:1px solid var(--line);padding-bottom:3px}
+footer .prop{margin-top:10px;font-size:12.5px;color:var(--text);opacity:.85}
+.fbwrap{margin-top:16px}
+.fblink{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);
+  text-decoration:none;border:1px solid var(--accent-line);border-radius:99px;padding:8px 16px;
+  transition:.18s}
+.fblink:hover{background:var(--accent-tint)}
+.fblink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fblink svg{width:14px;height:14px;flex:none}
+.fbfine{margin:9px 0 0;font-size:10.5px;color:var(--mute);opacity:.85}
+.fbfine a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px}
+.fbfine a:hover{color:var(--accent)}
 .fine{margin-top:20px;font-size:10.5px;color:var(--mute);opacity:.8;line-height:1.8}
 
 /* ---------- sticky bar ---------- */
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--shade);border-top:1px solid var(--line);
   padding:9px 0 calc(9px + env(safe-area-inset-bottom));backdrop-filter:blur(10px);z-index:45}
-.bar .wrap{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+/* Flex, not a fixed grid: a button the shop has not filled in is display:none,
+   and a grid column would leave a hole where it used to be. */
+.bar .wrap{display:flex;gap:9px}
+.bar .btn{flex:1 1 0;min-width:0}
+/* Facebook joins as a narrow icon only. Measured at 320px in Bangla the two
+   word buttons still hold their labels with room to spare, so the third item
+   does not crowd them. */
+.bar .bfb{flex:0 0 52px;padding:13px 0}
+.bar .bfb svg{width:17px;height:17px}
 .btn{display:flex;align-items:center;justify-content:center;padding:13px;border-radius:2px;
   text-decoration:none;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;
   border:1px solid transparent;cursor:pointer;font-family:inherit}
@@ -189,6 +224,10 @@ body.lang-minimal .orn{display:none}
   border:1px solid var(--accent-line);border-radius:99px;padding:10px 20px;background:var(--shade)}
 .lay-thread .pill .l{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 .lay-thread .pill .v{font-size:18px;font-weight:500;color:var(--accent-soft);font-variant-numeric:tabular-nums}
+.pill .pu{font-size:10px;color:var(--mute)}
+body.bn .pill .pu{font-size:11px}
+.pill .pg{font-size:10.5px;color:var(--mute);padding-left:13px;border-left:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
 .lay-thread .catalogue{padding:48px 0 20px;position:relative}
 .lay-thread .thread{position:absolute;left:50%;top:22px;bottom:22px;width:1px;
   background:linear-gradient(transparent,var(--accent) 12%,var(--accent) 88%,transparent);
@@ -208,24 +247,28 @@ body.lang-minimal .orn{display:none}
 .lay-thread .bead .price{margin:6px 0 0;font-family:var(--serif);font-size:25px}
 .lay-thread .bead .ask{display:inline-block;margin-top:7px;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
-/* phones: one horizontal card per item — thread + diamond, then photo, then text.
+/* Phones: the photograph gets the full width of the content column and the
+   words sit under it. The old 40%-wide thumbnail was 128px on a 360px screen
+   — too small to see the filigree, which is the thing that sells the piece.
    No alternating here; left/right is a desktop effect only. */
 @media(max-width:700px){
   .lay-thread .thread{left:12px}
-  .lay-thread .beads{gap:18px}
+  .lay-thread .beads{gap:26px}
   /* col 1 stays 24px so the diamond keeps sitting on the thread at left:12px */
-  .lay-thread .bead{grid-template-columns:24px 40% minmax(0,1fr);gap:11px;align-items:center}
-  /* every item needs an explicit order AND column, or a photo drops into the thread column */
-  .lay-thread .bead .node,.lay-thread .bead:nth-child(odd) .node,.lay-thread .bead:nth-child(even) .node{order:1;grid-column:1}
-  .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{order:2;grid-column:2;justify-content:flex-start}
-  .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{order:3;grid-column:3;text-align:left;overflow-wrap:break-word}
-  .lay-thread .bead .ph{width:100%;max-width:none}
-  .lay-thread .bead h3{font-size:18px;line-height:1.25}
+  .lay-thread .bead{grid-template-columns:24px minmax(0,1fr);grid-template-rows:auto auto;
+    gap:10px 12px;align-items:start}
+  /* every item needs an explicit row AND column, or a photo drops into the thread column */
+  .lay-thread .bead .node,.lay-thread .bead:nth-child(odd) .node,.lay-thread .bead:nth-child(even) .node{grid-column:1;grid-row:1;margin-top:14px}
+  .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{grid-column:2;grid-row:1;justify-content:flex-start}
+  .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{grid-column:2;grid-row:2;text-align:left;overflow-wrap:break-word}
+  .lay-thread .bead .ph{width:100%;max-width:none;aspect-ratio:3/2}
+  .lay-thread .bead h3{font-size:21px;line-height:1.25}
   .lay-thread .bead .m{margin-top:5px;font-size:10.5px;letter-spacing:.13em}
   .lay-thread .bead .w{margin-top:6px;font-size:12.5px}
-  .lay-thread .bead .price{margin-top:6px;font-size:21px}
-  .lay-thread .bead .price.req{font-size:14px}
-  .lay-thread .bead .ask{margin-top:8px;font-size:10.5px;letter-spacing:.12em}
+  .lay-thread .bead .blurb{margin-top:7px;font-size:12.5px}
+  .lay-thread .bead .price{margin-top:7px;font-size:24px}
+  .lay-thread .bead .price.req{font-size:15px}
+  .lay-thread .bead .ask{margin-top:9px;font-size:10.5px;letter-spacing:.12em}
   body.bn .lay-thread .bead .m{letter-spacing:normal;text-transform:none;font-size:12px}
   body.bn .lay-thread .bead .ask{letter-spacing:normal;text-transform:none;font-size:12px}
 }
@@ -246,9 +289,21 @@ body.lang-minimal .orn{display:none}
 .lay-invitation .invrate{margin:26px auto 0;text-align:center}
 .lay-invitation .invrate .v{font-family:var(--serif);font-size:34px;color:var(--accent-soft);font-variant-numeric:tabular-nums}
 .lay-invitation .invrate .l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
-.lay-invitation .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:12px}
+.lay-invitation .invrate .g{font-size:11.5px;color:var(--mute);margin-top:2px}
+body.bn .lay-invitation .invrate .l{letter-spacing:normal;text-transform:none;font-size:12px}
+.lay-invitation .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin-top:12px}
 .lay-invitation .card .ph{aspect-ratio:1/1}
-.lay-invitation .card h3{font-size:18px;margin-top:11px;text-align:center}
+.lay-invitation .card h3{font-size:20px;margin-top:12px;text-align:center}
+.lay-invitation .card .blurb{text-align:center}
+/* One card per row on a phone. Two columns leaves a 155px photograph and cuts
+   the description off mid-word; the landscape crop keeps the page from
+   running away in length. */
+@media(max-width:700px){
+  .lay-invitation .cards{grid-template-columns:minmax(0,1fr);gap:20px}
+  .lay-invitation .card .ph{aspect-ratio:4/3}
+  .lay-invitation .card h3{font-size:22px}
+  .lay-invitation .card .blurb{font-size:12.5px}
+}
 .lay-invitation .card .m{margin:3px 0 0;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--accent);text-align:center}
 .lay-invitation .card .w{margin:5px 0 0;font-size:11px;color:var(--mute);text-align:center}
@@ -274,6 +329,10 @@ body.lang-minimal .orn{display:none}
   border:1px solid var(--accent-line);border-radius:99px;padding:10px 20px;background:var(--shade)}
 .lay-ornate .pill .l{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
 .lay-ornate .pill .v{font-size:18px;font-weight:500;color:var(--accent-soft);font-variant-numeric:tabular-nums}
+.pill .pu{font-size:10px;color:var(--mute)}
+body.bn .pill .pu{font-size:11px}
+.pill .pg{font-size:10.5px;color:var(--mute);padding-left:13px;border-left:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
 .lay-ornate .catalogue{padding:50px 0 12px;position:relative;border-top:1px solid var(--line)}
 .lay-ornate .featured{display:grid;grid-template-columns:1.05fr 1fr;gap:36px;align-items:center;
   padding-bottom:32px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
@@ -300,12 +359,16 @@ body.lang-minimal .orn{display:none}
 .lay-ornate .plate .ask{display:inline-block;margin-top:8px;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
 @media(max-width:760px){
-  .lay-ornate .plate{grid-template-columns:104px 1fr;gap:15px;padding:14px 0}
+  .lay-ornate .plate{grid-template-columns:132px 1fr;gap:15px;padding:16px 0}
   .lay-ornate .plate:nth-of-type(even) .ph{order:0}
-  .lay-ornate .plate h3{font-size:20px}.lay-ornate .plate .price{font-size:19px}
+  .lay-ornate .plate h3{font-size:20px}.lay-ornate .plate .price{font-size:20px}
+  .lay-ornate .plate .blurb{font-size:12px}
 }
-.lay-ornate .band .orn.l{left:-8%;top:50%;transform:translateY(-50%);width:min(40vw,280px);opacity:.12}
-.lay-ornate .band .orn.r{right:-8%;top:50%;transform:translateY(-50%);width:min(40vw,280px);opacity:.12}
+/* The rate band is drawn in ALL THREE layouts, so these two must be positioned
+   for all three. Scoped to .lay-ornate they fell back to a 200px block at full
+   strength sitting over the "Today's rate" heading in thread and invitation. */
+.band .orn.l{left:-8%;top:50%;transform:translateY(-50%);width:min(40vw,280px);opacity:.12}
+.band .orn.r{right:-8%;top:50%;transform:translateY(-50%);width:min(40vw,280px);opacity:.12}
 .catnote{margin:24px auto 0;max-width:56ch;text-align:center;font-size:11.5px;color:var(--mute);
   line-height:1.8;padding-bottom:30px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:0 0 20px}
@@ -319,9 +382,13 @@ body.lang-minimal .orn{display:none}
 /* lift page content above the canvas without flattening anything that already
    has its own stacking order (the sticky header and the call bar) */
 body > *:not(.fxlayer){position:relative;z-index:1}
-/* the blanket rule above must not undo the two bars that are pinned to the screen */
+/* The blanket rule above must not undo anything that is pinned to the screen.
+   `body > *:not(.fxlayer)` is more specific than a plain class, so each of
+   these has to be restated at the same weight or it silently falls back into
+   the normal flow. */
 body > .topbar{position:fixed;z-index:50}
 body > .bar{position:fixed;z-index:45}
+body > .viewer{position:fixed;inset:0;z-index:200}
 body > .banner,body > .fest{z-index:3}
 
 
@@ -342,6 +409,80 @@ body.bn .adminlink{letter-spacing:normal;text-transform:none;font-size:12.5px}
 .adminlink:hover{border-color:var(--accent-line);color:var(--accent)}
 .adminlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .adminlink svg{width:12px;height:12px;flex:none}
+
+/* ================= TAP-TO-ZOOM PHOTO VIEWER ================= */
+/* the magnifier badge, and the invisible tap target under it */
+.zoombtn{position:absolute;inset:0;z-index:3;border:0;background:transparent;padding:0;
+  cursor:zoom-in;display:flex;align-items:flex-end;justify-content:flex-end;
+  -webkit-tap-highlight-color:transparent}
+.zoombtn .zb{display:flex;align-items:center;justify-content:center;width:27px;height:27px;
+  margin:8px;border-radius:50%;background:var(--shade);border:1px solid var(--accent-line);
+  color:var(--accent);backdrop-filter:blur(4px);transition:.18s}
+.zoombtn .zb svg{width:14px;height:14px}
+.zoombtn:hover .zb{background:var(--accent);color:var(--btn-text);border-color:var(--accent)}
+.zoombtn:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.is-sold .zoombtn .zb{opacity:.6}
+
+/* the page must not scroll behind the viewer, and must come back to the
+   exact same place when it closes */
+body.vlock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
+
+.viewer{position:fixed;inset:0;z-index:200;background:color-mix(in srgb,var(--bg) 96%,#000);
+  display:flex;align-items:center;justify-content:center;overscroll-behavior:contain}
+.viewer[hidden]{display:none}
+.viewer .vstage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;touch-action:none;cursor:zoom-in}
+.viewer.zoomed .vstage{cursor:grab}
+.viewer .vimg{max-width:100%;max-height:100%;width:auto;height:auto;display:block;
+  object-fit:contain;transform-origin:50% 50%;will-change:transform;user-select:none;
+  -webkit-user-drag:none}
+.viewer.dragging .vstage{transform:translate3d(var(--vdx,0),var(--vdy,0),0);opacity:.92}
+
+.viewer .vbtn{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--accent-line);background:var(--shade);backdrop-filter:blur(8px);
+  color:var(--accent);cursor:pointer;font-family:inherit;padding:0}
+.viewer .vbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.viewer .vbtn[hidden]{display:none}
+.viewer .vx{top:calc(12px + env(safe-area-inset-top));right:12px;width:42px;height:42px;
+  border-radius:50%;font-size:0}
+.viewer .vx::before{content:"\00d7";font-size:24px;line-height:1}
+.viewer .vnav{top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%}
+.viewer .vnav svg{width:19px;height:19px}
+.viewer .vprev{left:10px}
+.viewer .vnext{right:10px}
+.viewer .vzoom{position:absolute;z-index:2;left:12px;top:calc(12px + env(safe-area-inset-top));
+  display:flex;gap:7px}
+.viewer .vz{position:static;width:38px;height:38px;border-radius:50%;font-size:19px;line-height:1}
+.viewer .vcount{position:absolute;z-index:2;top:calc(20px + env(safe-area-inset-top));left:50%;
+  transform:translateX(-50%);margin:0;font-size:11.5px;color:var(--mute);
+  font-variant-numeric:tabular-nums;pointer-events:none}
+
+.viewer .vbar{position:absolute;z-index:2;left:0;right:0;bottom:0;text-align:center;cursor:pointer;
+  padding:20px 20px calc(22px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,color-mix(in srgb,var(--bg) 92%,#000) 46%);
+  transition:opacity .2s,transform .2s}
+.viewer .vbar h3{font-size:23px;line-height:1.2;color:var(--text)}
+.viewer .vbar .m{margin:5px 0 0;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--accent)}
+body.bn .viewer .vbar .m{letter-spacing:normal;text-transform:none;font-size:12px}
+.viewer .vbar .w{margin:6px 0 0;font-size:12px;color:var(--mute)}
+.viewer .vbar .p{margin:7px 0 0;font-family:var(--serif);font-size:24px;color:var(--accent-soft);
+  font-variant-numeric:tabular-nums}
+body.bn .viewer .vbar .p{font-family:var(--bn);font-size:20px}
+.viewer .vbar .p .req{font-family:var(--sans);font-size:13px;color:var(--accent)}
+.viewer .vbar .p .sold{font-family:var(--sans);font-size:13px;color:var(--mute)}
+.viewer.barsoff .vbar{opacity:0;transform:translateY(12px);pointer-events:none}
+.viewer.zoomed .vcount{opacity:0}
+
+@media(max-width:520px){
+  .viewer .vnav{width:38px;height:38px}
+  .viewer .vbar h3{font-size:19px}
+  .viewer .vbar .p{font-size:20px}
+}
+/* nothing moves for anyone who has asked their phone to stop animating */
+@media(prefers-reduced-motion:reduce){
+  .viewer .vimg,.viewer .vbar,.viewer .vstage,.zoombtn .zb{transition:none!important}
+}
 
 /* the visitor's own background switch, beside the night/ivory button */
 .cbtn-icon{padding:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center}

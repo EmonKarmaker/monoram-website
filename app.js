@@ -1,8 +1,10 @@
 import { db, configured, t, lang, setLang, money, num, esc, pick, bhoriLabel,
-         BHORI, ANA, RATTI, KARATS, karatName } from "./lib.js";
+         BHORI, ANA, RATTI, KARATS, karatName,
+         rateOf, bhoriRate, gramRate } from "./lib.js";
 import { buildTheme, applyTheme, DEFAULTS, logoSVG, wordmarkSVG, jewellersSVG,
          bouquetSVG, mandalaSVG, RULE } from "./theme.js";
 import { mountFX, wireFX, FX_DEFAULTS } from "./ambient.js";
+import { wireViewer } from "./viewer.js";
 
 const $ = id => document.getElementById(id);
 const UNITS = { bhori: BHORI, ana: ANA, ratti: RATTI, gram: 1 };
@@ -11,6 +13,65 @@ let S = {}, RATES = [], LATEST = null, PREV = null, PRODUCTS = [], FEST = null;
 let filter = "__all";
 let mode = localStorage.getItem("mj_mode") || null;
 let fxVisitor = localStorage.getItem("mj_fx");   // "on" | "off" | null = follow the shop setting
+let unitVisitor = localStorage.getItem("mj_unit");  // "gram" | "bhori" | null = follow the shop
+
+/* =====================================================================
+   HOW A RATE IS PRESENTED
+
+   Two ideas that must never be confused with each other:
+
+     rates.unit          the unit the OWNER TYPED for that one row,
+                         'gram' or 'bhori'. A fact about the stored number.
+                         Read by rateOf() in lib.js, which returns both.
+
+     settings.rate_unit  the unit the CUSTOMER SEES, 'gram' | 'bhori' |
+                         'both'. Purely a display choice. It never touches
+                         a stored number.
+
+   rateParts() below is the ONE place that decides which figure leads,
+   what it is called, and what (if anything) sits underneath. Rate cells,
+   the 22 carat pill, the invitation hero, both calculators and the rate
+   picture all call it. No other line of this file may name a unit.
+   ===================================================================== */
+
+/* what the shop published as its choice */
+const shopUnit = () => ["gram", "bhori", "both"].includes(S.rate_unit) ? S.rate_unit : "gram";
+
+/* what this visitor is looking at — their own choice wins, except when the
+   shop chose 'both', where both figures are already on screen */
+const liveUnit = () => {
+  const shop = shopUnit();
+  if (shop === "both") return "both";
+  return (unitVisitor === "gram" || unitVisitor === "bhori") ? unitVisitor : shop;
+};
+
+/* -> { value, label, sub:{value,label}|null, delta } or null when the grade
+   is blank. `forced` overrides the visitor's choice; the rate picture passes
+   shopUnit() because the picture is the shop's own artwork, not the
+   visitor's preference. */
+/* The ONE mapping from a unit to the words for it. t("per_gram") and
+   t("per_bhori") appear nowhere else in this file. */
+const unitLabel = u => u === "bhori" ? t("per_bhori") : t("per_gram");
+
+function rateParts(row, key, prevRow, forced) {
+  const r = rateOf(row, key);
+  if (!r) return null;
+  const u = forced || liveUnit();
+  const side = which => which === "bhori"
+    ? { value: r.bhori, label: unitLabel("bhori") }
+    : { value: r.gram,  label: unitLabel("gram")  };
+  const head = side(u === "bhori" ? "bhori" : "gram");   // 'both' leads with gram
+  const p = rateOf(prevRow, key);
+  const was = p ? (u === "bhori" ? p.bhori : p.gram) : null;
+  return {
+    value: head.value,
+    label: head.label,
+    sub: u === "both" ? side("bhori") : null,
+    /* the change is measured in whatever unit is on screen, so the arrow and
+       the figure above it always agree */
+    delta: was != null ? head.value - was : null
+  };
+}
 
 /* ===================== load ===================== */
 async function load() {
@@ -87,11 +148,20 @@ const lockup = (cls = "") => `<div class="lock ${cls}">
   <span class="wm">${wordmarkSVG()}</span>
   <span class="jw">${jewellersSVG()}</span></div>`;
 
+const MAGNIFIER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+  stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/>
+  <path d="M15.4 15.4L21 21M10.5 7.6v5.8M7.6 10.5h5.8"/></svg>`;
+
+/* The button sits over the whole photograph, so anywhere on the picture opens
+   the viewer, while the magnifier in the corner shows that it can be tapped. */
 const photo = p => (p.photo_url
-  ? `<img src="${esc(p.photo_url)}" alt="${esc(pick(p, "name") || "")}" loading="lazy">`
+  ? `<img src="${esc(p.photo_url)}" alt="${esc(pick(p, "name") || "")}"
+       loading="lazy" decoding="async">`
   : esc(t("photo")))
   + (pick(p, "tag") ? `<span class="tag">${esc(pick(p, "tag"))}</span>` : "")
-  + (p.sold ? `<span class="soldb">${esc(t("sold"))}</span>` : "");
+  + (p.sold ? `<span class="soldb">${esc(t("sold"))}</span>` : "")
+  + (p.photo_url ? `<button class="zoombtn" type="button" data-zoom="${esc(p.id ?? "")}"
+       aria-label="${esc(t("view_photo"))}"><span class="zb">${MAGNIFIER}</span></button>` : "");
 
 const waLink = nm => S.whatsapp
   ? `https://wa.me/${S.whatsapp}?text=${encodeURIComponent(`${t("enquire_p")}: ${nm || ""}`)}` : "#";
@@ -99,6 +169,11 @@ const waLink = nm => S.whatsapp
 const priceHTML = p => (p.price_on_request || p.price == null)
   ? `<p class="price req">${esc(t("ask_price"))}</p>`
   : `<p class="price">${money(p.price)}</p>`;
+
+/* One short line the owner can type per piece. Clamped to two lines in CSS,
+   and absent entirely when the field is blank. */
+const blurbHTML = p => pick(p, "blurb")
+  ? `<p class="blurb">${esc(pick(p, "blurb"))}</p>` : "";
 
 const weightLine = p => p.weight_bhori != null
   ? `${bhoriLabel(p.weight_bhori)} \u00B7 ${num((p.weight_bhori * BHORI).toFixed(2))} g` : "";
@@ -186,27 +261,49 @@ const heroText = () => ({
 });
 
 function pillHTML() {
-  if (!LATEST) return "";
-  const d = PREV ? LATEST.k22 - PREV.k22 : 0;
+  const P = rateParts(LATEST, "k22", PREV);
+  if (!P) return "";
+  const d = P.delta;
   const delta = d ? `<span style="color:var(--${d < 0 ? "down" : "up"});font-size:12px">${
     d < 0 ? "\u2193" : "\u2191"} ${money(Math.abs(d))}</span>` : "";
   return `<div class="pill"><span class="l">${esc(karatName("k22"))}</span>
-    <span class="v">${money(LATEST.k22)}</span>${delta}</div>`;
+    <span class="v">${money(P.value)}</span>
+    <span class="pu">${esc(P.label)}</span>${delta}
+    ${P.sub ? `<span class="pg">${money(P.sub.value)} ${esc(P.sub.label)}</span>` : ""}</div>`;
+}
+
+/* The visitor's own gram/bhori switch, beside the rate rather than in the
+   topbar — three control buttons up there already crowd a 360px screen.
+   Hidden when the shop chose 'both', because then there is nothing to flip.
+   Same shape as the theme and effects switches: a stored preference that
+   falls back to the shop's setting when the visitor has not chosen. */
+function unitSwitchHTML() {
+  if (shopUnit() === "both") return "";
+  const now = liveUnit();
+  const opt = u => `<button class="uchip" type="button" data-unit="${u}"
+    aria-pressed="${u === now}">${esc(unitLabel(u))}</button>`;
+  return `<div class="unitsw" role="group" aria-label="${esc(t("unit_switch"))}">
+    ${opt("gram")}${opt("bhori")}</div>`;
 }
 
 function rateBlock() {
   if (!LATEST) return `<section class="band" id="rate"><div class="wrap">
     ${sechead("", t("rate_today"))}<p class="emptymsg">${esc(t("no_rate"))}</p></div></section>`;
 
-  const cells = KARATS.map(x => [karatName(x.k), LATEST[x.k], PREV ? PREV[x.k] : null])
-    .filter(r => r[1] != null);
-  if (LATEST.silver != null) cells.push([t("silver"), LATEST.silver, PREV ? PREV.silver : null]);
+  /* Every cell is built by rateParts(), so the grid reads the same whether the
+     row was saved per bhori or per gram, and follows the shop's display
+     choice without this function knowing what the units are called. */
+  const cells = KARATS.map(x => [karatName(x.k), rateParts(LATEST, x.k, PREV)])
+    .filter(r => r[1]);
+  const sv = rateParts(LATEST, "silver", PREV);
+  if (sv) cells.push([t("silver"), sv]);
 
-  const grid = cells.map(([label, v, pv]) => {
-    const d = pv != null ? v - pv : null;
+  const grid = cells.map(([label, P]) => {
+    const d = P.delta;
     return `<div class="bcell"><p class="k">${esc(label)}</p>
-      <p class="v">${money(v)}</p>
-      <p class="g">${esc(t("per_bhori"))} \u00B7 ${money(v / BHORI)}</p>
+      <p class="v">${money(P.value)}</p>
+      <p class="u">${esc(P.label)}</p>
+      ${P.sub ? `<p class="g">${esc(P.sub.label)} \u00B7 ${money(P.sub.value)}</p>` : ""}
       ${d ? `<p class="d ${d < 0 ? "down" : "up"}">${d < 0 ? "\u2193" : "\u2191"} ${money(Math.abs(d))}</p>` : ""}
     </div>`;
   }).join("");
@@ -215,6 +312,7 @@ function rateBlock() {
     ${orn("l", "md")}${orn("r", "md")}
     <div class="wrap">
       ${sechead(`${t("effective")} ${LATEST.effective}`, t("rate_today"))}
+      ${unitSwitchHTML()}
       <div class="bandgrid">${grid}</div>
       <p class="note" style="text-align:center;max-width:56ch;margin:20px auto 0">${esc(t("metal_only"))}</p>
       ${RATES.length >= 2 ? `<div class="chartwrap">
@@ -230,7 +328,7 @@ function toolsBlock() {
   if (!LATEST) return "";
   const units = ["bhori", "ana", "ratti", "gram"]
     .map(u => `<option value="${u}">${esc(t(u))}</option>`).join("");
-  const grades = KARATS.filter(x => LATEST[x.k] != null)
+  const grades = KARATS.filter(x => rateOf(LATEST, x.k))
     .map(x => `<option value="${x.k}">${esc(karatName(x.k))}</option>`).join("");
   return `<section class="tools"><div class="wrap">
     ${sechead("", t("tools"))}
@@ -244,6 +342,7 @@ function toolsBlock() {
           <input id="mk" type="number" inputmode="decimal" value="12" min="0" max="40" step="1"></div>
         <div class="out">
           <div class="oline"><span id="wsum"></span><b id="gsum"></b></div>
+          <div class="oline"><span>${esc(t("rate_used"))}</span><b id="rateUsed"></b></div>
           <div class="oline"><span>${esc(t("metal_value"))}</span><b id="metal"></b></div>
           <div class="oline"><span id="mkLabel"></span><b id="mkval"></b></div>
           <div class="oline total"><span>${esc(t("estimate"))}</span><b id="total"></b></div>
@@ -256,6 +355,7 @@ function toolsBlock() {
         <div class="field"><label for="ek">${esc(t("grade"))}</label><select id="ek">${grades}</select></div>
         <div class="out">
           <div class="oline"><span id="ewsum"></span><b id="egsum"></b></div>
+          <div class="oline"><span>${esc(t("rate_used"))}</span><b id="eRateUsed"></b></div>
           <div class="oline total"><span>${esc(t("worth"))}</span><b id="eworth"></b></div>
         </div>
         <p class="toolnote">${esc(t("exch_note"))}</p></div>
@@ -275,6 +375,11 @@ function trustBlock() {
   </div></section>`;
 }
 
+const FB_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12.06C22
+  6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52
+  1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45
+  2.91h-2.33V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>`;
+
 function footerBlock() {
   const hrs = pick(S, "hours"), closed = pick(S, "closed_day");
   const line3 = [hrs, closed ? `${t("closed")}: ${closed}` : ""].filter(Boolean).join(" \u00B7 ");
@@ -285,11 +390,26 @@ function footerBlock() {
   const mapUrl = S.map_url || "https://www.google.com/maps/place/Monoram+Jewellers/" +
     "@24.4586908,89.7041104,19z/data=!4m6!3m5!1s0x39fdeb526f3db25f:0x3be9b3800c1c45d1" +
     "!8m2!3d24.4586908!4d89.7041104";
+
+  /* Each of these is optional. A field left blank in the admin page renders
+     nothing at all here — never a bare label and never an empty link. */
+  const propName = pick(S, "proprietor");
+  const propLine = propName
+    ? `<p class="prop">${esc(t("proprietor"))}: ${esc(propName)}</p>` : "";
+  const fbPage = S.facebook_page
+    ? `<a class="fblink" href="${esc(S.facebook_page)}" target="_blank" rel="noopener">
+        ${FB_ICON}${esc(t("fb_page"))}</a>` : "";
+  const fbProfile = S.facebook_profile
+    ? `<p class="fbfine"><a href="${esc(S.facebook_profile)}" target="_blank" rel="noopener">
+        ${esc(t("fb_profile"))}</a></p>` : "";
+
   return `<footer><div class="wrap">
     ${lockup("sm")}
     <h2 style="font-size:26px;margin-bottom:12px">${esc(t("visit"))}</h2>
     <p>${bits.join("<br>")}</p>
+    ${propLine}
     <a class="maplink" href="${esc(mapUrl)}" target="_blank" rel="noopener">${esc(t("map"))}</a>
+    ${fbPage ? `<div class="fbwrap">${fbPage}${fbProfile}</div>` : fbProfile}
     <p class="fine">${esc(S.email || "")}</p>
     ${S.show_admin_link === false ? "" : `<div><a class="adminlink" href="admin.html" rel="nofollow">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -312,10 +432,16 @@ function filtersHTML() {
 
 const shown = () => filter === "__all" ? PRODUCTS : PRODUCTS.filter(p => p.category === filter);
 
+/* The order pieces actually appear in on screen. Ornate lifts the featured
+   piece to the top, so this is not always the same as shown(). The viewer
+   swipes through this, so swiping matches what the eye just scrolled past. */
+let ORDER = [];
+const setOrder = arr => { ORDER = arr.filter(p => p.photo_url); return arr; };
+
 /* ---------- layout: gold thread ---------- */
 function viewThread() {
   const { title, said } = heroText();
-  const list = shown();
+  const list = setOrder(shown());
   const beads = list.map(p => `<article class="bead${p.sold ? " is-sold" : ""}">
       <div class="art"><div class="ph">${photo(p)}</div></div>
       <div class="node"></div>
@@ -323,6 +449,7 @@ function viewThread() {
         <h3>${esc(pick(p, "name") || "")}</h3>
         <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
         ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
+        ${blurbHTML(p)}
         ${priceHTML(p)}
         <a class="ask" href="${waLink(pick(p, "name"))}" data-track="${p.id ?? ""}">${esc(t("enquire"))}</a>
       </div></article>`).join("");
@@ -346,12 +473,13 @@ function viewThread() {
 /* ---------- layout: invitation ---------- */
 function viewInvitation() {
   const { title, said } = heroText();
-  const list = shown();
+  const list = setOrder(shown());
   const cards = list.map(p => `<article class="card${p.sold ? " is-sold" : ""}">
       <div class="ph">${photo(p)}</div>
       <h3>${esc(pick(p, "name") || "")}</h3>
       <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
       ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
+      ${blurbHTML(p)}
       ${priceHTML(p)}
       <p style="text-align:center;margin:6px 0 0"><a class="ask" href="${waLink(pick(p, "name"))}"
         data-track="${p.id ?? ""}" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;
@@ -364,9 +492,14 @@ function viewInvitation() {
         ${lockup()}
         <h1>${esc(title)}</h1>
         ${said ? `<p class="said">${esc(said)}</p>` : ""}
-        ${LATEST ? `<div class="invrate">
-          <div class="l">${esc(karatName("k22"))} \u00B7 ${esc(t("per_bhori"))}</div>
-          <div class="v">${money(LATEST.k22)}</div></div>` : ""}
+        ${(() => {
+          const P = rateParts(LATEST, "k22", PREV);
+          return P ? `<div class="invrate">
+            <div class="l">${esc(karatName("k22"))} \u00B7 ${esc(P.label)}</div>
+            <div class="v">${money(P.value)}</div>
+            ${P.sub ? `<div class="g">${esc(P.sub.label)} \u00B7 ${money(P.sub.value)}</div>` : ""}
+          </div>` : "";
+        })()}
       </div>
       <section id="collection">
         ${sechead(t("on_counter"), t("collection"))}
@@ -385,6 +518,7 @@ function viewOrnate() {
   const list = shown();
   const feat = filter === "__all" ? (list.find(p => p.featured) || list[0]) : null;
   const rest = feat ? list.filter(p => p !== feat) : list;
+  setOrder(feat ? [feat, ...rest] : rest);   // featured sits at the top of the page
 
   const featHTML = feat ? `<article class="featured">
       ${orn("mand", "md")}
@@ -392,6 +526,7 @@ function viewOrnate() {
       <div>
         <p class="kick">${esc(t("featured"))}</p>
         <h3>${esc(pick(feat, "name") || "")}</h3>
+        ${blurbHTML(feat)}
         <div class="spec">
           <div><span>${esc(t("carat"))}</span><b>${esc(feat.karat || "\u2014")}</b></div>
           ${feat.weight_bhori != null ? `
@@ -409,6 +544,7 @@ function viewOrnate() {
         <h3>${esc(pick(p, "name") || "")}</h3>
         <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
         ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
+        ${blurbHTML(p)}
         ${priceHTML(p)}
         <a class="ask" href="${waLink(pick(p, "name"))}" data-track="${p.id ?? ""}">${esc(t("enquire"))}</a>
       </div></article>`).join("");
@@ -433,7 +569,10 @@ function viewOrnate() {
 function drawChart() {
   const svg = $("chart");
   if (!svg || RATES.length < 2) return;
-  const pts = RATES.slice(-6), vals = pts.map(p => Number(p.k22));
+  /* Chart the per-bhori figure so old and new rows sit on one scale. */
+  const pts = RATES.slice(-6).filter(p => bhoriRate(p, "k22") != null);
+  if (pts.length < 2) return;
+  const vals = pts.map(p => bhoriRate(p, "k22"));
   const W = 640, H = 165, L = 62, R = 8, T = 12, B = 24;
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = (hi - lo) * 0.35 || 1000, min = lo - pad, max = hi + pad;
@@ -463,8 +602,14 @@ function calcPrice() {
   if (!LATEST || !$("w")) return;
   const q = parseFloat($("w").value) || 0, u = $("u").value || "bhori";
   const g = q * UNITS[u], key = $("k").value || "k22";
-  const metal = g * (LATEST[key] / BHORI);
+  const perGram = gramRate(LATEST, key);        // never LATEST[key] / BHORI
+  if (perGram == null) return;
+  const metal = g * perGram;
   const pct = Math.max(0, parseFloat($("mk").value) || 0), mk = metal * pct / 100;
+  /* the arithmetic is always done per gram; only the shown rate follows the
+     display choice, and rateParts() owns that */
+  const P = rateParts(LATEST, key, null);
+  $("rateUsed").textContent = `${money(P.value)} ${P.label}`;
   $("wsum").textContent = `${num(q)} ${t(u)}`;
   $("gsum").textContent = `${num(g.toFixed(3))} g`;
   $("metal").textContent = money(metal);
@@ -476,15 +621,96 @@ function calcExchange() {
   if (!LATEST || !$("ew")) return;
   const q = parseFloat($("ew").value) || 0, u = $("eu").value || "bhori";
   const g = q * UNITS[u], key = $("ek").value || "k22";
+  const perGram = gramRate(LATEST, key);        // never LATEST[key] / BHORI
+  if (perGram == null) return;
+  const P = rateParts(LATEST, key, null);
+  $("eRateUsed").textContent = `${money(P.value)} ${P.label}`;
   $("ewsum").textContent = `${num(q)} ${t(u)}`;
   $("egsum").textContent = `${num(g.toFixed(3))} g`;
-  $("eworth").textContent = money(g * (LATEST[key] / BHORI));
+  $("eworth").textContent = money(g * perGram);
 }
 
 /* ===================== rate picture ===================== */
+
+/* Break `text` into lines that each fit inside maxWidth at the context's
+   current font. A single word too long to fit on its own (which happens
+   with a long Bangla compound) is split by character rather than allowed
+   to run past the frame. Nothing this returns can overflow maxWidth. */
+export function wrapText(ctx, text, maxWidth) {
+  const out = [];
+  const hardBreak = word => {
+    let cur = "";
+    for (const ch of word) {
+      if (cur && ctx.measureText(cur + ch).width > maxWidth) { out.push(cur); cur = ch; }
+      else cur += ch;
+    }
+    return cur;
+  };
+  let line = "";
+  for (const word of String(text ?? "").split(/\s+/).filter(Boolean)) {
+    const test = line ? line + " " + word : word;
+    if (ctx.measureText(test).width <= maxWidth) { line = test; continue; }
+    if (line) { out.push(line); line = ""; }
+    if (ctx.measureText(word).width <= maxWidth) line = word;
+    else line = hardBreak(word);
+  }
+  if (line) out.push(line);
+  return out;
+}
+
 async function makeRateImage() {
   if (!LATEST) return;
-  const c = $("rateCanvas"), g = c.getContext("2d"), W = c.width, H = c.height;
+  const c = $("rateCanvas");
+  const W = 1080;                       // width is fixed; height is worked out below
+  const MARGIN = 120;                   // text keeps this far from either edge
+  const TEXTW = W - MARGIN * 2;
+  const BOTTOM = 96;                    // clear space under the last footer line
+
+  /* ---- what has to fit ----
+     shopUnit(), not liveUnit(): the picture is the shop's published artwork,
+     so it must not change because one visitor flipped their own switch. */
+  const asShop = shopUnit();
+  const rows = KARATS.map(x => [karatName(x.k), rateParts(LATEST, x.k, null, asShop)])
+    .filter(r => r[1]);
+  const sv = rateParts(LATEST, "silver", null, asShop);
+  if (sv) rows.push([t("silver"), sv]);          // silver still only when it is set
+
+  const foot = [];
+  const propName = pick(S, "proprietor");
+  if (propName) foot.push({ s: `${propName}, ${t("proprietor")}`, f: "300 27px Poppins, sans-serif", c: "accent", gap: 0 });
+  if (S.shop_name) foot.push({ s: S.shop_name, f: "300 36px Cormorant Garamond, Georgia, serif", c: "text", gap: 44 });
+  const addr = pick(S, "address");
+  if (addr) foot.push({ s: addr, f: "300 25px Poppins, sans-serif", c: "accent", gap: 40 });
+  const phones = [S.phone1, S.phone2].filter(Boolean).join("  ·  ");
+  if (phones) foot.push({ s: phones, f: "300 25px Poppins, sans-serif", c: "accent", gap: 38 });
+
+  /* ---- measure, then size the canvas to the content ---- */
+  const measure = c.getContext("2d");
+  measure.font = "300 24px Poppins, sans-serif";
+  const noteLines = wrapText(measure, t("metal_only"), TEXTW);
+
+  /* "Effective from" is free text the owner types, so it wraps as well, and the
+     grade blocks start below however many lines it turns into. */
+  measure.font = "300 25px Poppins, sans-serif";
+  const effLines = wrapText(measure, `${t("effective")} ${LATEST.effective || ""}`.trim(), TEXTW);
+  const rowsTop = Math.max(580, 462 + effLines.length * 32 + 54);
+
+  /* a long name or address wraps too, and the wrap has to be paid for in height */
+  foot.forEach(l => {
+    measure.font = l.f;
+    l.lines = wrapText(measure, l.s, TEXTW);
+    l.extra = (l.lines.length - 1) * 34;
+  });
+  const footHeight = foot.reduce((a, l) => a + l.gap + l.extra, 0);
+
+  const ROW_H = 118;                                  // label + per-gram line + divider
+  const need = rowsTop + rows.length * ROW_H + 34     // header block through the last row
+             + noteLines.length * 34 + 56             // disclaimer, then a gap
+             + footHeight + BOTTOM;
+  const H = Math.max(1350, Math.ceil(need));
+  c.width = W; c.height = H;                          // resizing also clears the canvas
+
+  const g = c.getContext("2d");
   const cs = getComputedStyle(document.documentElement);
   const V = k => cs.getPropertyValue(k).trim();
   const bg = V("--bg") || "#0f0c0c", accent = V("--accent") || "#edc163";
@@ -511,30 +737,48 @@ async function makeRateImage() {
 
   g.textAlign = "center";
   g.fillStyle = text; g.font = "300 44px Cormorant Garamond, Georgia, serif";
-  g.fillText(t("rate_today"), W / 2, 420);
+  wrapText(g, t("rate_today"), TEXTW).forEach((l, i) => g.fillText(l, W / 2, 420 + i * 48));
   g.fillStyle = mute; g.font = "300 25px Poppins, sans-serif";
-  g.fillText(`${t("effective")} ${LATEST.effective}`, W / 2, 462);
+  effLines.forEach((l, i) => g.fillText(l, W / 2, 462 + i * 32));
 
-  const rows = KARATS.filter(x => LATEST[x.k] != null).map(x => [karatName(x.k), money(LATEST[x.k])]);
-  if (LATEST.silver != null) rows.push([t("silver"), money(LATEST.silver)]);
-  let y = 580;
-  rows.forEach(([label, val]) => {
+  /* ---- one block per grade, in whichever unit the shop publishes ---- */
+  let y = rowsTop;
+  rows.forEach(([label, P], i) => {
     g.textAlign = "left"; g.fillStyle = text; g.font = "300 38px Poppins, sans-serif";
-    g.fillText(label, 120, y);
+    g.fillText(label, MARGIN, y);
     g.textAlign = "right"; g.fillStyle = soft; g.font = "500 42px Poppins, sans-serif";
-    g.fillText(val, W - 120, y);
-    g.strokeStyle = mute; g.globalAlpha = .25; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(120, y + 26); g.lineTo(W - 120, y + 26); g.stroke();
-    g.globalAlpha = 1; y += 100;
+    g.fillText(money(P.value), W - MARGIN, y);
+
+    g.textAlign = "left"; g.fillStyle = mute; g.font = "300 23px Poppins, sans-serif";
+    g.fillText(P.label, MARGIN, y + 38);
+    if (P.sub) {
+      g.textAlign = "right";
+      g.fillText(`${money(P.sub.value)} ${P.sub.label}`, W - MARGIN, y + 38);
+    }
+
+    /* no divider under the last block, so a missing grade leaves no dangling rule */
+    if (i < rows.length - 1) {
+      g.strokeStyle = mute; g.globalAlpha = .25; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(MARGIN, y + 68); g.lineTo(W - MARGIN, y + 68); g.stroke();
+      g.globalAlpha = 1;
+    }
+    y += ROW_H;
   });
+
+  /* ---- disclaimer, wrapped rather than cut ---- */
+  y += 34;
   g.textAlign = "center"; g.fillStyle = mute; g.font = "300 24px Poppins, sans-serif";
-  g.fillText(t("per_bhori"), W / 2, y + 12);
-  g.fillText(t("metal_only").slice(0, 62), W / 2, y + 68);
-  g.fillStyle = text; g.font = "300 34px Cormorant Garamond, Georgia, serif";
-  g.fillText(S.shop_name || "", W / 2, H - 190);
-  g.fillStyle = accent; g.font = "300 25px Poppins, sans-serif";
-  g.fillText(S.address || "", W / 2, H - 150);
-  g.fillText([S.phone1, S.phone2].filter(Boolean).join("  \u00B7  "), W / 2, H - 112);
+  noteLines.forEach(line => { g.fillText(line, W / 2, y); y += 34; });
+
+  /* ---- footer, anchored to the bottom edge ---- */
+  let fy = H - BOTTOM - footHeight;
+  const COLOUR = { accent, text, soft, mute };
+  foot.forEach(l => {
+    fy += l.gap;
+    g.font = l.f; g.fillStyle = COLOUR[l.c];
+    l.lines.forEach(line => { g.fillText(line, W / 2, fy); fy += 34; });
+    fy -= 34;                                   // fy stays on the last baseline drawn
+  });
 
   const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
   const file = new File([blob], "monoram-gold-rate.jpg", { type: "image/jpeg" });
@@ -553,6 +797,13 @@ function wireUp() {
   ["w", "u", "k", "mk"].forEach(id => $(id) && $(id).addEventListener("input", calcPrice));
   ["ew", "eu", "ek"].forEach(id => $(id) && $(id).addEventListener("input", calcExchange));
   const sb2 = $("shareBtn"); if (sb2) sb2.addEventListener("click", makeRateImage);
+  document.querySelectorAll(".uchip").forEach(b => b.addEventListener("click", () => {
+    unitVisitor = b.dataset.unit;
+    localStorage.setItem("mj_unit", unitVisitor);
+    render();
+    /* keep the rate section under the thumb instead of jumping to the top */
+    document.getElementById("rate")?.scrollIntoView({ block: "start" });
+  }));
   document.querySelectorAll(".fchip").forEach(b => b.addEventListener("click", () => {
     filter = b.dataset.v; render();
     const c = document.getElementById("collection");
@@ -565,6 +816,19 @@ function wireUp() {
   $("waBtn").textContent = t("whatsapp");
   $("waBtn").href = S.whatsapp ? "https://wa.me/" + S.whatsapp : "#";
   $("waBtn").classList.toggle("hide", !S.whatsapp);
+
+  /* Facebook rides along as an icon, and only when the page is actually set */
+  const fb = $("fbBtn");
+  if (fb) {
+    const on = !!S.facebook_page;
+    fb.classList.toggle("hide", !on);
+    if (on) {
+      fb.href = S.facebook_page;
+      fb.innerHTML = FB_ICON;
+      fb.setAttribute("aria-label", t("fb_page"));
+      fb.title = t("fb_page");
+    }
+  }
 }
 
 async function track(kind, productId) {
@@ -590,8 +854,19 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-track]");
   if (a && a.dataset.track) track("product", Number(a.dataset.track));
 });
-if ("serviceWorker" in navigator && !window.PREVIEW_DATA) {
+/* the viewer walks whatever is on screen now, in the order it is shown */
+wireViewer(() => ORDER);
+
+/* Never install the offline cache on a developer's own machine: a cached local
+   build can outlive the session and keep showing stale pages for days. Any
+   worker already installed on localhost is torn down here too. */
+const IS_LOCAL = ["localhost", "127.0.0.1", "::1", "[::1]", ""].includes(location.hostname);
+if ("serviceWorker" in navigator && !window.PREVIEW_DATA && !IS_LOCAL) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+} else if ("serviceWorker" in navigator && IS_LOCAL) {
+  navigator.serviceWorker.getRegistrations()
+    .then(rs => rs.forEach(r => r.unregister()))
+    .catch(() => {});
 }
 
 load().catch(err => {

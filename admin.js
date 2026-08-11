@@ -1,4 +1,4 @@
-import { db, configured } from "./lib.js";
+import { db, configured, BHORI, rateUnit } from "./lib.js";
 import { DEFAULTS, buildTheme, contrast, hexToRgb, LAYOUTS, LANGUAGES, FESTIVALS,
          logoSVG } from "./theme.js";
 
@@ -24,8 +24,9 @@ function saveError(el, err) {
   if (!missingColumn(err)) return msg(el, esc((err && err.message) || String(err)), "err");
   msg(el,
     "<b>Your database is one step behind this page.</b><br>" +
-    "Open Supabase &rarr; SQL Editor, paste in the file <b>patch.sql</b> from your website folder " +
-    "and press Run. Then reload this page and save again.<br>" +
+    "Open Supabase &rarr; SQL Editor, paste in the file <b>patch2.sql</b> from your website folder " +
+    "and press Run. (If it still complains afterwards, run <b>patch.sql</b> as well.) " +
+    "Then reload this page and save again.<br>" +
     `<span style="opacity:.7">Details: ${esc((err && err.message) || "")}</span>`, "err");
 }
 
@@ -80,24 +81,70 @@ function defaultEffective() {
   const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   return `${time}, ${date}`;
 }
+/* ---- per gram in, per bhori shown ----
+   The four boxes are per gram. Under each one the page shows what that comes
+   to per bhori, live as it is typed, so a wrong figure is obvious before it
+   is published. A number over this limit is almost certainly a per-bhori
+   figure typed into a per-gram box, so say so — but never block the save,
+   because only the owner knows what the right number is. */
+const GRAM_SUSPECT = 100000;
+const RATE_KEYS = ["k22", "k21", "trad", "silver"];
+
+function showConversion() {
+  let warned = false;
+  RATE_KEYS.forEach(k => {
+    const el = $("r_" + k), out = $("c_" + k);
+    if (!el || !out) return;
+    const v = parseFloat(el.value);
+    if (el.value === "" || !isFinite(v) || v <= 0) { out.textContent = ""; out.className = "conv"; return; }
+    if (v > GRAM_SUSPECT) {
+      warned = true;
+      out.className = "conv warn";
+      out.textContent = `That is ${taka(v)} for ONE GRAM. Did you type the bhori price by mistake?`;
+      return;
+    }
+    out.className = "conv";
+    out.textContent = `= ${taka(v * BHORI)} per bhori`;
+  });
+  $("rateWarn").innerHTML = warned
+    ? '<div class="msg err">One of the boxes looks like a <b>per bhori</b> price. These boxes are ' +
+      '<b>per gram</b>. Check it before you publish &mdash; you can still publish if it is right.</div>'
+    : "";
+}
+RATE_KEYS.forEach(k => $("r_" + k) && $("r_" + k).addEventListener("input", showConversion));
+
 async function loadRates() {
   if (!$("r_eff").value) $("r_eff").value = defaultEffective();
   const { data, error } = await SB.from("rates").select("*")
     .order("created_at", { ascending: false }).limit(20);
   if (error) return msg($("rateMsg"), esc(error.message), "err");
   const rows = data || [];
+  window.__rates = rows;              // the unit preview reads the newest of these
   if (rows.length) {
     const l = rows[0];
-    ["k22", "k21", "trad", "silver"].forEach(k => {
+    /* Prefill from the last rate, converted to per gram if that row was
+       published per bhori. The stored row is never changed. */
+    const wasBhori = rateUnit(l) === "bhori";
+    RATE_KEYS.forEach(k => {
       const el = $("r_" + k);
-      if (el && !el.value && l[k] != null) el.value = l[k];
+      if (!el || el.value || l[k] == null) return;
+      const n = Number(l[k]);
+      if (!isFinite(n)) return;
+      el.value = wasBhori ? +(n / BHORI).toFixed(2) : n;
     });
   }
-  $("rateList").innerHTML = rows.length ? rows.map(r =>
-    `<div class="item"><div class="info"><b>${taka(r.k22)} <span class="pill">22K</span></b>
-      <span>${esc(r.effective)}</span></div>
-      <div class="ops"><button class="btn danger sm" data-delrate="${r.id}">Delete</button></div></div>`
-  ).join("") : '<p class="hint" style="margin:0">No rates published yet.</p>';
+  showConversion();
+  drawUnitPreview();
+
+  $("rateList").innerHTML = rows.length ? rows.map(r => {
+    const bhori = rateUnit(r) === "bhori" ? Number(r.k22) : Number(r.k22) * BHORI;
+    const unitPill = rateUnit(r) === "bhori"
+      ? '<span class="pill">typed per bhori</span>'
+      : '<span class="pill">typed per gram</span>';
+    return `<div class="item"><div class="info"><b>${taka(bhori)} <span class="pill">22K</span></b>
+      <span>${esc(r.effective)} &middot; ${taka(bhori / BHORI)} per gram ${unitPill}</span></div>
+      <div class="ops"><button class="btn danger sm" data-delrate="${r.id}">Delete</button></div></div>`;
+  }).join("") : '<p class="hint" style="margin:0">No rates published yet.</p>';
 }
 $("saveRate").addEventListener("click", async () => {
   const b = $("saveRate"); b.disabled = true;
@@ -105,7 +152,8 @@ $("saveRate").addEventListener("click", async () => {
     effective: $("r_eff").value.trim() || defaultEffective(),
     k22: parseFloat($("r_k22").value), k21: parseFloat($("r_k21").value),
     trad: parseFloat($("r_trad").value),
-    silver: $("r_silver").value === "" ? null : parseFloat($("r_silver").value)
+    silver: $("r_silver").value === "" ? null : parseFloat($("r_silver").value),
+    unit: "gram"          // these boxes are per gram; say so on the row itself
   };
   if (["k22", "k21", "trad"].some(k => !isFinite(row[k]))) {
     b.disabled = false;
@@ -113,10 +161,54 @@ $("saveRate").addEventListener("click", async () => {
   }
   const { error } = await SB.from("rates").insert(row);
   b.disabled = false;
-  if (error) return msg($("rateMsg"), esc(error.message), "err");
+  if (error) return saveError($("rateMsg"), error);
   msg($("rateMsg"), "Published. The website is updated.");
+  RATE_KEYS.forEach(k => { const el = $("r_" + k); if (el) el.value = ""; });
   loadRates();
 });
+/* ---- which unit the WEBSITE SHOWS (settings.rate_unit) ----
+   Not to be confused with rates.unit above, which records the unit the owner
+   TYPED for one row. This one is display only and changes nothing stored. */
+function drawUnitPreview() {
+  const u = $("s_rateunit").value || "gram";
+  /* Preview off the newest published rate, or off whatever is typed in the
+     boxes above. Never off invented numbers. */
+  const newest = (window.__rates || [])[0];
+  let perGram = null;
+  if (newest && newest.k22 != null) {
+    perGram = rateUnit(newest) === "bhori" ? Number(newest.k22) / BHORI : Number(newest.k22);
+  } else {
+    const typed = parseFloat($("r_k22").value);
+    if (isFinite(typed) && typed > 0) perGram = typed;
+  }
+  if (perGram == null) {
+    $("unitPreview").innerHTML =
+      '<p class="none">Publish a rate, or type one in the boxes above, ' +
+      'and the preview will appear here.</p>';
+    return;
+  }
+  const perBhori = perGram * BHORI;
+  const head = u === "bhori" ? perBhori : perGram;
+  const headLabel = u === "bhori" ? "per bhori" : "per gram";
+  const sub = u === "both" ? `<span class="g">per bhori &middot; ${taka(perBhori)}</span>` : "";
+  $("unitPreview").innerHTML =
+    `<p class="k">22 Carat</p><p class="v">${taka(head)}</p>` +
+    `<p class="u">${headLabel}</p>${sub}`;
+}
+["s_rateunit", "r_k22"].forEach(id =>
+  $(id) && $(id).addEventListener("input", drawUnitPreview));
+$("s_rateunit").addEventListener("change", drawUnitPreview);
+
+$("saveRateUnit").addEventListener("click", async () => {
+  const b = $("saveRateUnit"); b.disabled = true;
+  const { error } = await SB.from("settings")
+    .upsert({ id: 1, rate_unit: $("s_rateunit").value, updated_at: new Date().toISOString() });
+  b.disabled = false;
+  if (error) return saveError($("rateUnitMsg"), error);
+  SETTINGS.rate_unit = $("s_rateunit").value;
+  msg($("rateUnitMsg"), "Saved. The website shows prices that way now.");
+});
+
 $("rateList").addEventListener("click", async e => {
   const b = e.target.closest("[data-delrate]"); if (!b) return;
   if (!confirm("Delete this rate from the history?")) return;
@@ -135,8 +227,8 @@ async function compress(file, max = 1200, quality = 0.82) {
   return await new Promise(r => cv.toBlob(r, "image/jpeg", quality));
 }
 function clearItemForm() {
-  ["i_id","i_name","i_name_bn","i_cat","i_cat_bn","i_weight","i_price","i_tag"]
-    .forEach(id => $(id).value = "");
+  ["i_id","i_name","i_name_bn","i_cat","i_cat_bn","i_blurb","i_blurb_bn",
+   "i_weight","i_price","i_tag"].forEach(id => $(id).value = "");
   $("i_karat").value = "";
   ["i_req","i_sold","i_featured"].forEach(id => $(id).checked = false);
   $("i_photo").value = "";
@@ -172,6 +264,8 @@ $("saveItem").addEventListener("click", async () => {
       name_bn: $("i_name_bn").value.trim() || null,
       category: $("i_cat").value.trim() || null,
       category_bn: $("i_cat_bn").value.trim() || null,
+      blurb: $("i_blurb").value.trim() || null,
+      blurb_bn: $("i_blurb_bn").value.trim() || null,
       karat: $("i_karat").value || null,
       weight_bhori: $("i_weight").value === "" ? null : parseFloat($("i_weight").value),
       price: $("i_price").value === "" ? null : parseFloat($("i_price").value),
@@ -209,6 +303,7 @@ $("itemList").addEventListener("click", async e => {
     $("i_id").value = p.id; $("i_name").value = p.name || "";
     $("i_name_bn").value = p.name_bn || ""; $("i_cat").value = p.category || "";
     $("i_cat_bn").value = p.category_bn || ""; $("i_karat").value = p.karat || "";
+    $("i_blurb").value = p.blurb || ""; $("i_blurb_bn").value = p.blurb_bn || "";
     $("i_weight").value = p.weight_bhori ?? ""; $("i_price").value = p.price ?? "";
     $("i_tag").value = p.tag || ""; $("i_req").checked = !!p.price_on_request;
     $("i_featured").checked = !!p.featured; $("i_sold").checked = !!p.sold;
@@ -232,7 +327,9 @@ const F = {
   s_banner:"banner_text", s_banner_bn:"banner_text_bn", s_name:"shop_name", s_tagline:"tagline",
   s_addr:"address", s_addr_bn:"address_bn", s_hours:"hours", s_hours_bn:"hours_bn",
   s_closed:"closed_day", s_closed_bn:"closed_day_bn",
-  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email"
+  s_p1:"phone1", s_p2:"phone2", s_wa:"whatsapp", s_email:"email",
+  s_prop:"proprietor", s_prop_bn:"proprietor_bn",
+  s_fbpage:"facebook_page", s_fbprofile:"facebook_profile"
 };
 const C = { s_banner_on:"banner_on", s_hall:"show_hallmark", s_slip:"show_slip",
             s_exch:"show_exchange", s_rep:"show_repair", s_bajus:"bajus_member" };
@@ -244,6 +341,10 @@ async function loadShop() {
   SETTINGS = data || {};
   Object.entries(F).forEach(([el, col]) => { $(el).value = SETTINGS[col] ?? ""; });
   Object.entries(C).forEach(([el, col]) => { $(el).checked = !!SETTINGS[col]; });
+  /* display unit lives on the Gold rate tab, but it is a settings column */
+  $("s_rateunit").value =
+    ["gram", "bhori", "both"].includes(SETTINGS.rate_unit) ? SETTINGS.rate_unit : "gram";
+  drawUnitPreview();
   fillLook(SETTINGS);
   fillFx(SETTINGS);
 }

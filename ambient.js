@@ -27,6 +27,7 @@ const reduceMotion = () =>
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 let raf = null, canvas = null, ctx = null, parts = [], shooters = [];
+let paused = false;                 // set while the fullscreen photo viewer is open
 let cfg = {}, mode = "night", pointer = { x: -9999, y: -9999, has: false };
 let W = 0, H = 0, DPR = 1, last = 0, sinceShooter = 0;
 
@@ -258,7 +259,7 @@ function frame(now) {
 }
 
 function start() {
-  if (raf) return;
+  if (raf || paused) return;      // paused = the photo viewer is covering the screen
   last = performance.now();
   raf = requestAnimationFrame(frame);
 }
@@ -289,6 +290,20 @@ export function mountFX(settings, currentMode, colours) {
 
   if (reduceMotion()) { stop(); paintStill(); return; }
   start();
+}
+
+/* The photo viewer covers the whole screen, so there is no reason to keep
+   painting particles behind it. On a cheap Android that loop is the
+   difference between a smooth pinch and a stuttering one. */
+export function pauseFX() {
+  if (paused) return;
+  paused = true;
+  stop();
+}
+export function resumeFX() {
+  if (!paused) return;
+  paused = false;
+  if (canvas && !reduceMotion() && !document.hidden) start();
 }
 
 export function unmountFX() {

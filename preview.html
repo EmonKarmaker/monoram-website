@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAMPLE PREVIEW — Monoram Jewellers (not the real shop)</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0f0c0c">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans+Bengali:wght@300;400;500&family=Poppins:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* An unmissable ribbon, on every screen, so this page can never be mistaken
+   for the real shop in a screenshot or over someone's shoulder. */
+#sampleFlag{position:fixed;top:0;left:0;right:0;z-index:9999;pointer-events:none;
+  background:#7a1f1f;color:#fff;font:500 11px/1.45 Poppins,system-ui,sans-serif;
+  letter-spacing:.08em;text-align:center;padding:5px 10px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+body{padding-top:26px}
+.topbar{top:26px}
+</style>
+</head>
+<body>
+
+<div id="sampleFlag">SAMPLE PREVIEW — MADE-UP DATA, NOT CONNECTED TO THE SHOP'S DATABASE</div>
+
+<div class="topbar" id="topbar"><div class="wrap">
+  <span class="tb-brand">
+    <span class="tb-mark" id="tbMark"></span>
+    <span class="tb-name" id="tbName"></span>
+  </span>
+  <span class="ctl">
+    <button class="cbtn cbtn-icon" id="fxBtn" type="button" title=""></button>
+    <button class="cbtn" id="modeBtn" type="button"></button>
+    <button class="cbtn" id="langBtn" type="button"></button>
+  </span>
+</div></div>
+
+<div id="festHost"></div>
+<div class="banner hide" id="banner"><p id="bannerText"></p></div>
+<div id="setupWarn"></div>
+
+<main id="stage"></main>
+
+<nav class="bar"><div class="wrap" id="barWrap">
+  <a class="btn g" id="callBtn" href="#"></a>
+  <a class="btn o" id="waBtn" href="#"></a>
+  <a class="btn o bfb hide" id="fbBtn" href="#" target="_blank" rel="noopener"></a>
+</div></nav>
+
+<canvas id="rateCanvas" width="1080" height="1350" style="display:none"></canvas>
+
+<script src="config.js"></script>
+<script src="marks.js"></script>
+<script>
+/* =====================================================================
+   SAMPLE DATA ONLY.
+
+   Setting window.PREVIEW_DATA makes app.js skip Supabase entirely — this
+   page never opens a connection, never reads the real shop and can never
+   write to it. Nothing below is a real price, a real rate, a real piece
+   of jewellery or a real photograph.
+
+   Every visible string says so out loud, on purpose.
+   ===================================================================== */
+(function () {
+  var sample = function (a, b) {
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + a + '"/><stop offset="1" stop-color="' + b + '"/>' +
+      '</linearGradient></defs><rect width="600" height="600" fill="url(#g)"/>' +
+      '<text x="300" y="285" text-anchor="middle" fill="#fff" fill-opacity="0.92" ' +
+      'font-family="sans-serif" font-size="46" font-weight="600">SAMPLE</text>' +
+      '<text x="300" y="340" text-anchor="middle" fill="#fff" fill-opacity="0.75" ' +
+      'font-family="sans-serif" font-size="27">not a real photo</text></svg>');
+  };
+
+  window.PREVIEW_DATA = {
+    settings: {
+      id: 1,
+      shop_name: "SAMPLE SHOP — not the real Monoram",
+      tagline: "SAMPLE tagline — nothing on this page is real",
+      hero_title: "SAMPLE PREVIEW PAGE",
+      hero_text: "SAMPLE text. This page uses made-up data so the layout can be " +
+                 "checked safely. No price, rate or photograph here is real.",
+      address: "SAMPLE address — not a real address",
+      address_bn: "নমুনা ঠিকানা — আসল নয়",
+      phone1: "SAMPLE — not a real number",
+      phone2: "",
+      whatsapp: "",                 /* blank on purpose: no live wa.me link from a sample */
+      email: "SAMPLE — not a real email address",
+      hours: "SAMPLE hours",
+      closed_day: "SAMPLE day",
+      proprietor: "SAMPLE NAME — not the real proprietor",
+      facebook_page: "",            /* blank on purpose: no live links from a sample */
+      facebook_profile: "",
+      banner_on: true,
+      banner_text: "SAMPLE PREVIEW — every price, rate and photograph below is made up.",
+      banner_text_bn: "নমুনা পাতা — নিচের কোনো দাম, রেট বা ছবি আসল নয়।",
+      show_hallmark: true, show_slip: true, show_exchange: true, show_repair: true,
+      bajus_member: false,          /* never claim a real membership on a sample page */
+      show_admin_link: false,
+      logo_key: "D5-padma-lotus",
+      layout: "thread",             /* change to "invitation" or "ornate" to compare */
+      style_language: "minimal",    /* or "ornate" */
+      festival: "none",
+      theme_default: "night", theme_toggle: true,
+      rate_unit: "gram",            /* "gram" | "bhori" | "both" */
+      fx_on: true, fx_density: "normal"
+    },
+
+    /* One old per-bhori row and two per-gram rows, so the mixed-unit handling
+       can be seen working. The numbers are invented. */
+    rates: [
+      { id: 1, effective: "SAMPLE RATE — not a real price (older, typed per bhori)",
+        k22: 111111, k21: 105555, trad: 88888, silver: 1111, unit: "bhori" },
+      { id: 2, effective: "SAMPLE RATE — not a real price (typed per gram)",
+        k22: 11111, k21: 10555, trad: 8888, silver: 111, unit: "gram" },
+      { id: 3, effective: "SAMPLE RATE — not a real price, do not quote this to anyone",
+        k22: 12345, k21: 11234, trad: 9876, silver: 123, unit: "gram" }
+    ],
+
+    products: [
+      { id: 901, name: "SAMPLE Necklace — not a real piece",
+        category: "SAMPLE category", karat: "22K",
+        blurb: "SAMPLE description — this text is made up.",
+        weight_bhori: 2.5, price: 111111, featured: true,
+        tag: "SAMPLE", photo_url: sample("#8a6a2f", "#e8c87a") },
+      { id: 902, name: "SAMPLE Bangles — not a real piece",
+        category: "SAMPLE category", karat: "21K",
+        blurb: "SAMPLE description — this text is made up.",
+        weight_bhori: 1.25, price: 222222, photo_url: sample("#6d5424", "#d9b563") },
+      { id: 903, name: "SAMPLE Chain — not a real piece",
+        category: "SAMPLE second category", karat: "22K",
+        blurb: "SAMPLE description — shows the ask-for-price state.",
+        weight_bhori: 0.5, price_on_request: true, photo_url: sample("#4f3d1c", "#c2a057") },
+      { id: 904, name: "SAMPLE Earrings — not a real piece",
+        category: "SAMPLE second category", karat: "22K",
+        blurb: "SAMPLE description — shows the sold state.",
+        weight_bhori: 0.4, price: 333333, sold: true, photo_url: sample("#7b5f2a", "#e0bd6e") },
+      { id: 905, name: "SAMPLE Ring — not a real piece",
+        category: "SAMPLE third category", karat: "21K",
+        weight_bhori: 0.2, price: 44444, photo_url: sample("#5a4520", "#cfa95c") },
+      { id: 906, name: "SAMPLE Pendant — not a real piece",
+        category: "SAMPLE category", karat: "22K",
+        blurb: "SAMPLE description — this text is made up.",
+        weight_bhori: 0.3, price: 55555, photo_url: sample("#836427", "#eccd85") }
+    ],
+
+    festival: null
+  };
+})();
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

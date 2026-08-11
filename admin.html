@@ -92,6 +92,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .sbox span{font-size:11px;color:var(--ink2)}
 .note{background:var(--goldbg);border:1px solid #ecdcb8;border-radius:5px;padding:12px 14px;
   font-size:12px;color:var(--gold);line-height:1.65;margin-bottom:14px}
+/* the live "= X per bhori" reading under each per-gram box */
+.conv{margin:6px 0 0;font-size:12px;color:var(--gold);min-height:18px;line-height:1.5}
+.conv.warn{color:var(--bad);font-weight:500}
+/* a mock-up of one rate cell, so the owner sees the choice before saving */
+.upreview{background:#141110;border:1px solid #2c2826;border-radius:5px;padding:20px 14px;
+  text-align:center;color:#f9f2e1}
+.upreview .k{margin:0;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#edc163}
+.upreview .v{margin:7px 0 0;font-family:Marcellus,Georgia,serif;font-size:26px;color:#f2d391}
+.upreview .u{margin:2px 0 0;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:#928b7d}
+.upreview .g{display:inline-block;margin:6px 0 0;padding-top:6px;border-top:1px solid #2c2826;
+  font-size:11px;color:#928b7d}
+.upreview .none{margin:0;font-size:12px;color:#928b7d}
 .hide{display:none !important}
 .loggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
 .logbtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:10px 6px 8px;cursor:pointer;
@@ -153,23 +166,61 @@ input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
     <div id="tab-rates">
       <div class="panel">
         <h2>Publish today's rate</h2>
-        <p class="hint">Enter the BAJUS rate per bhori. Saving publishes it to the website straight away and
-          adds a point to the history chart. Leave silver blank if you don't want to show it.</p>
+        <p class="hint"><b>Type the rate PER GRAM</b> &mdash; the same number your source gives you,
+          for example <b>20160</b> for &ldquo;22 KARAT Gold &mdash; CADMIUM (HALLMARKED GOLD)
+          &mdash; 20,160 BDT/GRAM&rdquo;.<br>
+          Under each box you will see what that comes to per bhori, so you can check it looks right
+          before you publish. Saving puts it on the website straight away and adds a point to the
+          history chart. Leave silver blank if you don't want to show it.</p>
         <div class="field"><label for="r_eff">Effective from</label>
           <input id="r_eff" type="text" placeholder="10:00 AM, 24 July 2026"></div>
         <div class="row2">
-          <div class="field"><label for="r_k22">22 carat</label><input id="r_k22" type="number" inputmode="decimal" step="any"></div>
-          <div class="field"><label for="r_k21">21 carat</label><input id="r_k21" type="number" inputmode="decimal" step="any"></div>
-          <div class="field"><label for="r_trad">Traditional</label><input id="r_trad" type="number" inputmode="decimal" step="any"></div>
+          <div class="field"><label for="r_k22">22 carat &mdash; &#2547; per gram</label>
+            <input id="r_k22" type="number" inputmode="decimal" step="any" placeholder="20160">
+            <p class="conv" id="c_k22"></p></div>
+          <div class="field"><label for="r_k21">21 carat &mdash; &#2547; per gram</label>
+            <input id="r_k21" type="number" inputmode="decimal" step="any">
+            <p class="conv" id="c_k21"></p></div>
+          <div class="field"><label for="r_trad">Traditional &mdash; &#2547; per gram</label>
+            <input id="r_trad" type="number" inputmode="decimal" step="any">
+            <p class="conv" id="c_trad"></p></div>
+          <div class="field"><label for="r_silver">Silver (optional) &mdash; &#2547; per gram</label>
+            <input id="r_silver" type="number" inputmode="decimal" step="any">
+            <p class="conv" id="c_silver"></p></div>
         </div>
-        <div class="field"><label for="r_silver">Silver (optional)</label>
-          <input id="r_silver" type="number" inputmode="decimal" step="any"></div>
+        <div id="rateWarn"></div>
         <button class="btn dark" id="saveRate" type="button">Publish rate</button>
         <div id="rateMsg"></div>
       </div>
       <div class="panel">
+        <h2>How customers see the price</h2>
+        <p class="hint">This changes only what the website <b>shows</b>. It does not change a
+          single rate you have published, and you can switch it whenever you like.<br>
+          You always <b>type</b> the rate per gram above — that is a separate thing.</p>
+        <div class="field" style="max-width:320px">
+          <label for="s_rateunit">Show prices as</label>
+          <select id="s_rateunit">
+            <option value="gram">Per gram</option>
+            <option value="bhori">Per bhori</option>
+            <option value="both">Both — per gram, with per bhori underneath</option>
+          </select>
+        </div>
+        <p class="hint" style="margin:0 0 10px">This is how it will look on the website:</p>
+        <div id="unitPreview" class="upreview"></div>
+        <p class="hint" style="margin:10px 0 0">With <b>per gram</b> or <b>per bhori</b>, customers
+          also get a small switch beside the rate so they can see the other one for themselves.
+          With <b>both</b> that switch disappears, because both figures are already showing.</p>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn dark" id="saveRateUnit" type="button" style="width:auto">Save</button>
+        </div>
+        <div id="rateUnitMsg"></div>
+      </div>
+
+      <div class="panel">
         <h2>History</h2>
-        <p class="hint">Every rate you publish is kept here and drawn on the chart.</p>
+        <p class="hint">Every rate you publish is kept here and drawn on the chart. Each one shows
+          the unit it was typed in. Rates published before the change to per gram are marked
+          <b>per bhori</b>, and the website still reads them correctly.</p>
         <div id="rateList"></div>
       </div>
     </div>
@@ -179,13 +230,18 @@ input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
       <div class="panel">
         <h2 id="itemFormTitle">Add a piece</h2>
         <p class="hint">A photo is optional — without one the card shows an empty frame.
-          Photos are shrunk automatically before upload.</p>
+          Photos are shrunk automatically before upload. The short description shows on the
+          card under the weight, cut off after two lines, so keep it to a few words.</p>
         <input type="hidden" id="i_id">
         <div class="row2">
           <div class="field"><label for="i_name">Name (English)</label><input id="i_name" type="text"></div>
           <div class="field"><label for="i_name_bn">Name (Bangla)</label><input id="i_name_bn" type="text" class="bn"></div>
           <div class="field"><label for="i_cat">Category (English)</label><input id="i_cat" type="text" placeholder="Necklace"></div>
           <div class="field"><label for="i_cat_bn">Category (Bangla)</label><input id="i_cat_bn" type="text" class="bn"></div>
+          <div class="field"><label for="i_blurb">Short description (English, optional)</label>
+            <input id="i_blurb" type="text" placeholder="Hand-set stones, bridal weight"></div>
+          <div class="field"><label for="i_blurb_bn">Short description (Bangla, optional)</label>
+            <input id="i_blurb_bn" type="text" class="bn"></div>
           <div class="field"><label for="i_karat">Carat</label>
             <select id="i_karat"><option value="">—</option><option>22K</option><option>21K</option><option>Traditional</option></select></div>
           <div class="field"><label for="i_weight">Weight in bhori</label><input id="i_weight" type="number" inputmode="decimal" step="any"></div>
@@ -242,7 +298,29 @@ input[type=color]{width:52px;height:44px;padding:3px;flex:none;cursor:pointer}
           <div class="field"><label for="s_p2">Phone 2</label><input id="s_p2" type="text"></div>
           <div class="field"><label for="s_wa">WhatsApp number</label><input id="s_wa" type="text" placeholder="8801762436392"></div>
           <div class="field"><label for="s_email">Email</label><input id="s_email" type="email"></div>
+          <div class="field"><label for="s_prop">Proprietor (English)</label>
+            <input id="s_prop" type="text" placeholder="Ratan Karmoker"></div>
+          <div class="field"><label for="s_prop_bn">Proprietor (Bangla)</label>
+            <input id="s_prop_bn" type="text" class="bn"></div>
         </div>
+        <p class="hint" style="margin:12px 0 0">The WhatsApp box must hold the <b>mobile</b>
+          number, digits only, starting 880 and with no spaces or dashes &mdash; the landline
+          cannot receive WhatsApp messages.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Facebook</h2>
+        <p class="hint">Paste the full web address of each page, starting with https://.
+          Leave a box empty and nothing at all shows on the website for it.</p>
+        <div class="field"><label for="s_fbpage">Shop's Facebook page</label>
+          <input id="s_fbpage" type="url" spellcheck="false"
+            placeholder="https://www.facebook.com/people/Monoram-Jewellers/61592891604973/"></div>
+        <div class="field"><label for="s_fbprofile">Proprietor's own Facebook profile</label>
+          <input id="s_fbprofile" type="url" spellcheck="false"
+            placeholder="https://www.facebook.com/roton.karmaker.737"></div>
+        <p class="hint" style="margin:0">The shop page shows as a button in the footer. The
+          personal profile shows underneath it in smaller type, clearly labelled as the
+          proprietor's own profile.</p>
       </div>
 
       <div class="panel">
