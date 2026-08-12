@@ -1,58 +1,152 @@
 # =====================================================================
-#  Monoram Jewellers — Apache / cPanel settings
-#  Upload this file into public_html along with the website.
-#  It is not a program; it is a short list of instructions for the server.
+#  Monoram Jewellers — Apache settings for cPanel shared hosting
+#
+#  This file is not a program. It is a short list of instructions that
+#  the web server reads every time somebody opens the site.
+#
+#  It must sit in the SAME folder as index.html on the server — usually
+#  public_html, but see DEPLOY.md step 6 if the domain points somewhere
+#  else. If this file is missing, the site still works, but a phone can
+#  keep showing an old copy of the design for days.
+#
+#  Every block below is wrapped in <IfModule>. Shared hosts differ in
+#  which Apache modules they switch on, and an unguarded directive for a
+#  module that is off makes the whole site return "500 Internal Server
+#  Error". Guarded like this, a missing module means that one block is
+#  skipped and everything else still works.
 # =====================================================================
 
-# ---------- 1. Always use https ----------
-# The "add to home screen" app and the offline copy only work over https.
-# Over plain http the browser silently refuses to install them.
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteCond %{HTTPS} !=on
-  RewriteCond %{HTTP:X-Forwarded-Proto} !https
-  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-</IfModule>
 
-# ---------- 2. Correct file types ----------
-# Some servers do not know these by default and send them as plain text,
-# which makes the browser refuse to load them.
+# ---------------------------------------------------------------------
+#  1. File types
+#
+#  Some servers do not recognise these and send them as plain text,
+#  which makes the browser refuse to load them.
+# ---------------------------------------------------------------------
 <IfModule mod_mime.c>
-  AddType application/manifest+json .webmanifest
-  AddType text/javascript          .js
-  AddType image/svg+xml            .svg
+  AddType application/manifest+json  .webmanifest
+  AddType text/javascript            .js
+  AddType text/javascript            .mjs
+  AddType image/svg+xml              .svg
 </IfModule>
 
-# ---------- 3. What may be cached, and for how long ----------
+
+# ---------------------------------------------------------------------
+#  2. What the phone may keep, and for how long
+#
+#  This is the block that matters most. A whole round of finished work
+#  once reached the shop looking unstyled because the phone had kept an
+#  old styles.css: the new index.html and app.js arrived, the stylesheet
+#  did not, and the new parts of the page rendered with no design at all.
+#
+#  "no-cache" does NOT mean "do not keep it". The phone still stores the
+#  file and still shows it instantly — it just asks the server "has this
+#  changed?" first. When it has not, the reply is an empty 304 and
+#  nothing is downloaded again. The cost is one small question per file;
+#  the benefit is that an upload is never invisible.
+# ---------------------------------------------------------------------
 <IfModule mod_headers.c>
-  # The service worker and the pages themselves must always be re-checked,
-  # or a phone keeps serving yesterday's website forever.
-  <FilesMatch "^(sw\.js|index\.html|admin\.html|preview\.html|manifest\.webmanifest)$">
+
+  # --- The service worker: never kept, not even for a second. ---
+  # This one file decides which version of everything else the phone is
+  # allowed to use offline. If the browser caches sw.js, it can keep
+  # running last month's rules about the whole site. "no-store" tells it
+  # to keep no copy whatsoever and fetch a fresh one every time.
+  <FilesMatch "^sw\.js$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # --- The pages, the stylesheet and the scripts: always re-checked. ---
+  # None of these has a version number in its filename, so the only way
+  # the phone can tell an old one from a new one is to ask.
+  <FilesMatch "^(index\.html|admin\.html|preview\.html|styles\.css|app\.js|lib\.js|viewer\.js|theme\.js|marks\.js|ambient\.js|admin\.js|config\.js|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 
-  # config.js holds the database address and the site address. If it is
-  # cached hard, changing the domain later will not take effect.
-  <FilesMatch "^config\.js$">
-    Header set Cache-Control "no-cache, must-revalidate"
+  # --- Pictures, icons and fonts: kept for a year. ---
+  # These are safe to keep, because a changed picture gets a new address
+  # from the database rather than replacing an old one at the same name.
+  # Keeping them is what makes the site open quickly on mobile data.
+  <FilesMatch "\.(png|jpe?g|gif|webp|avif|ico|svg|woff2?|ttf|otf|eot)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
+
 </IfModule>
 
-# ---------- 4. Keep the working files private ----------
-# The .sql files describe the database and the .md files are your own
-# notes. Neither belongs on the public internet. Best not to upload them
-# at all — this is a second lock in case one slips through.
+# The same instruction again, for hosts that have mod_expires switched on
+# but not mod_headers. Harmless when both are on — mod_headers wins.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html                   "access plus 0 seconds"
+  ExpiresByType text/css                    "access plus 0 seconds"
+  ExpiresByType text/javascript             "access plus 0 seconds"
+  ExpiresByType application/javascript      "access plus 0 seconds"
+  ExpiresByType application/manifest+json   "access plus 0 seconds"
+  ExpiresByType image/png                   "access plus 1 year"
+  ExpiresByType image/jpeg                  "access plus 1 year"
+  ExpiresByType image/gif                   "access plus 1 year"
+  ExpiresByType image/webp                  "access plus 1 year"
+  ExpiresByType image/avif                  "access plus 1 year"
+  ExpiresByType image/svg+xml               "access plus 1 year"
+  ExpiresByType image/x-icon                "access plus 1 year"
+  ExpiresByType font/woff2                  "access plus 1 year"
+  ExpiresByType font/woff                   "access plus 1 year"
+</IfModule>
+
+
+# ---------------------------------------------------------------------
+#  3. Keep the working files private
+#
+#  The .sql files describe the database and the .md files are your own
+#  notes. Neither belongs on the public internet. deploy.sh and
+#  deploy.ps1 already refuse to upload them; this is a second lock in
+#  case one is ever put there by hand.
+# ---------------------------------------------------------------------
 <IfModule mod_authz_core.c>
-  <FilesMatch "\.(sql|md)$">
+  <FilesMatch "\.(sql|md|sh|ps1|example)$">
+    Require all denied
+  </FilesMatch>
+  <FilesMatch "^\.env">
     Require all denied
   </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-  <FilesMatch "\.(sql|md)$">
-    Order allow,deny
-    Deny from all
-  </FilesMatch>
+  <IfModule mod_access_compat.c>
+    <FilesMatch "\.(sql|md|sh|ps1|example)$">
+      Order allow,deny
+      Deny from all
+    </FilesMatch>
+    <FilesMatch "^\.env">
+      Order allow,deny
+      Deny from all
+    </FilesMatch>
+  </IfModule>
 </IfModule>
 
-# ---------- 5. Do not list folder contents ----------
-Options -Indexes
+
+# ---------------------------------------------------------------------
+#  4. Do not list the contents of a folder
+#
+#  Without this, opening a folder that has no index.html shows a listing
+#  of every file in it.
+# ---------------------------------------------------------------------
+<IfModule mod_autoindex.c>
+  Options -Indexes
+</IfModule>
+
+
+# =====================================================================
+#  DELIBERATELY NOT HERE: the https:// redirect, and the www redirect.
+#
+#  An earlier version of this file forced https itself. That has been
+#  removed on purpose. cPanel hosts almost always redirect to https
+#  already, either in AutoSSL or in the account's own settings, and two
+#  redirects pointing at each other put the browser in a loop and the
+#  site stops loading entirely — "too many redirects".
+#
+#  If the site is genuinely reachable over plain http with no redirect,
+#  turn it on in cPanel (Domains → the domain → Force HTTPS Redirect)
+#  rather than adding it back here. Doing it in one place cannot loop.
+# =====================================================================

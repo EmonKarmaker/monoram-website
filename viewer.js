@@ -118,7 +118,12 @@ function zoomAbout(next, focal, animate = true) {
 
 /* --------------------------------------------------------------- content */
 function detailHTML(p) {
-  const spec = [pick(p, "category"), p.karat].filter(Boolean).join(" · ");
+  /* same guard as the cards: a category that is only the piece's own name
+     back again ("Bracelet" under "BRACELET") is printed once, not twice */
+  const same = s => String(s ?? "").trim().toLowerCase();
+  const cat = pick(p, "category") || "";
+  const spec = [same(cat) && same(cat) !== same(pick(p, "name")) ? cat : "", p.karat]
+    .filter(Boolean).join(" · ");
   const w = p.weight_bhori != null
     ? `${bhoriLabel(p.weight_bhori)} · ${num((p.weight_bhori * BHORI).toFixed(2))} g` : "";
   const price = p.sold ? `<span class="sold">${esc(t("sold"))}</span>`

@@ -1,308 +1,441 @@
-# Putting the new website live
+# Putting the website live
 
-Four things to do, in this order. Do not skip step 1 — the website will show
-errors until the database has the new columns.
+Your website lives in a folder on a **cPanel shared-hosting server**. It changes
+only when new files are uploaded into that folder. Nothing else updates it.
 
-You can do all of this from your phone.
-
----
-
-## Step 1 — Add the new columns to the database
-
-The website now stores a few things it did not store before: which unit each
-gold rate was typed in, your name as proprietor, your two Facebook links, and
-a short description for each piece.
-
-1. Open **supabase.com** in your phone's browser and sign in.
-2. Tap your project, **monoram**.
-3. In the left-hand menu tap **SQL Editor**.
-4. Tap **+ New query** (top of the list).
-5. Open the file **patch2.sql** from your website folder, select all of the
-   text, and copy it.
-6. Paste it into the big empty box in the SQL Editor.
-7. Tap the green **Run** button (bottom right). On a phone you can also press
-   Ctrl+Enter if you have a keyboard.
-
-**What "it worked" looks like:** a green bar appears under the box saying
-**Success. No rows returned**. That is the correct result — this file changes
-the shape of the tables, it does not look anything up, so having no rows to
-show back is exactly right.
-
-**If you see red instead:** read the message. If it says something already
-exists, that is harmless — the file is written to be safe to run twice. Run it
-again if you are unsure; nothing is lost either way.
-
-> This file never deletes a column, never renames one, and never removes a row.
-> Your rates, your pieces and your photos are untouched.
+There is no automatic deployment. Pushing to GitHub does **not** put anything
+live — GitHub is only a backup copy. See step 8.
 
 ---
 
-## Step 2 — Send the new website files up to cPanel
+## CHECKLIST
 
-The site is plain HTML, CSS and JavaScript. There is nothing to "build" —
-the files you have are the files the server needs. You are only copying
-them into place.
+Once you have done this before, this is the whole routine:
 
-### 2a. Keep a copy of what is there now
+1. Supabase → SQL Editor → run `patch2.sql`, then `patch3.sql` — **first time only**
+2. `.\deploy.ps1 -Zip` — builds `monoram-upload.zip` with the right 16 files
+3. cPanel → File Manager → **Settings → Show Hidden Files** → into the site folder
+4. Upload the zip → right-click → **Extract** → **Overwrite all** → delete the zip
+5. Open the site on your phone
+6. If it looks unchanged: Chrome → ⋮ → Settings → Site settings → the site → **Clear & reset**
+7. Prove it: view source, first line of `styles.css` shows today's date
+8. `git add -A && git commit -m "..." && git push` — backup only, changes nothing live
+
+Steps 2–4 are the zip route. If you set up FTP instead, they collapse into
+`.\deploy.ps1 -DryRun` then `.\deploy.ps1` — see step 4 below.
+
+---
+---
+
+# Step 1 — Update the database (first time only)
+
+**These two files have never been run.** Until they are, the admin panel will
+show an error about a missing column whenever you try to save a rate or edit a
+piece, and the website cannot show a rate per gram.
+
+You only ever do this once. Running them a second time is harmless, so if you
+are unsure whether you did it, just do it.
+
+1. Go to **supabase.com** and sign in.
+2. Tap your project.
+3. In the left menu, tap **SQL Editor**.
+4. Tap **New query**. You get an empty white box.
+5. Open the file **patch2.sql** from your website folder in Notepad.
+   Select all of it (Ctrl+A), copy it (Ctrl+C).
+6. Click into the white box in Supabase and paste (Ctrl+V).
+7. Tap the green **Run** button, bottom right. (Or press Ctrl+Enter.)
+8. Look at the panel that appears underneath.
+
+**What success looks like:** a small green bar reading
+
+> **Success. No rows returned**
+
+That is the correct result. It looks like nothing happened, and that is exactly
+right — the patch adds columns, and adding a column returns no rows. Do not run
+it again looking for a different message.
+
+**What a problem looks like:** a red box with a message in it. Read the message.
+If it says something already exists, you have already run it and everything is
+fine. Anything else, send me the red text.
+
+9. Now do the same again with **patch3.sql**: New query → paste → Run →
+   *Success. No rows returned.*
+
+**The order matters.** patch2 first, then patch3. patch3 depends on patch2.
+
+---
+
+# Step 2 — Make an FTP account in cPanel
+
+This is how your computer is allowed to put files on the server. You do this
+once, and then never again.
+
+1. Sign in to cPanel. (Your host emailed you the address — usually
+   `yourdomain.com/cpanel` or `yourdomain.com:2083`.)
+2. In the search box at the top, type **FTP** and tap **FTP Accounts**.
+3. Under **Add FTP Account**, fill in:
+   - **Log In** — type `deploy`
+   - **Password** — tap **Password Generator**, then **Copy** the password it
+     makes, and paste it somewhere safe right now. You cannot see it again.
+   - **Directory** — cPanel fills this in for you as something like
+     `/home/youracct/public_html/deploy`. **Change it** to just
+     `public_html` (or whatever folder your site is in — see step 6).
+     If you leave the default, the account can only reach an empty subfolder
+     and your uploads will go nowhere useful.
+   - **Quota** — choose **Unlimited**
+4. Tap **Create FTP Account**.
+
+### Now read the three values you need
+
+Scroll down to the list of accounts and find the one you just made.
+
+- **Username** — ⚠️ **This is the part people get wrong.** cPanel shows the
+  full username, and it is almost always `deploy@yourdomain.com` — not just
+  `deploy`. Copy exactly what cPanel displays, including the `@` and the
+  domain. If you use only `deploy`, the connection is refused with no
+  useful explanation.
+- **Server address** — tap **Configure FTP Client** next to your account. It
+  shows **FTP Server**, usually `ftp.yourdomain.com`. Copy it *without* any
+  `ftp://` in front.
+- **Directory** — the folder shown beside the account. This is your `FTP_DIR`.
+
+---
+
+# Step 3 — Fill in .env.deploy
+
+1. In your website folder, find the file **.env.deploy.example**.
+2. Make a copy of it in the same folder.
+3. Rename the copy to exactly **.env.deploy** — with the dot at the front and
+   no `.example` on the end.
+
+   > Windows Explorer may refuse a name starting with a dot. If it does, name
+   > it `.env.deploy.` — with a dot on the **end** as well — and press Enter.
+   > Windows removes the trailing dot and you are left with the right name.
+
+4. Open **.env.deploy** in Notepad and fill in the values from step 2:
+
+   ```
+   FTP_HOST=ftp.yourdomain.com
+   FTP_USER=deploy@yourdomain.com
+   FTP_PASS=the-password-you-copied
+   FTP_DIR=public_html
+   SITE_URL=https://yourdomain.com
+   ```
+
+5. Save and close.
+
+This file holds your server password. It is listed in `.gitignore`, so it never
+goes to GitHub. Never paste its contents into a chat or an email.
+
+---
+
+# Step 4 — Dry run first, then the real upload
+
+## 4a. The dry run — always do this first
+
+Open the website folder, right-click in an empty part of the window, and choose
+**Open in Terminal** (or **Open PowerShell window here**). Then type:
+
+```powershell
+.\deploy.ps1 -DryRun
+```
+
+If Windows says *"running scripts is disabled on this system"*, use this
+instead — it does the same thing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy.ps1 -DryRun
+```
+
+**Nothing is uploaded.** You get a list of every file that *would* go up, then
+a list of what is deliberately being left behind, then a total.
+
+Check three things in that list:
+
+- ✅ `.htaccess` is there — **it must be the first line.** This is the file the
+  whole caching fix depends on, and it is the one an upload most often skips
+  silently because its name starts with a dot.
+- ✅ `index.html`, `styles.css` and `app.js` are there.
+- ✅ **No** `.sql` files and **no** `.md` files in the upload list. Those are
+  your private notes and the database patches; they belong in the
+  "Not uploaded, on purpose" list underneath.
+
+## 4b. The real upload
+
+When the list looks right:
+
+```powershell
+.\deploy.ps1
+```
+
+It prints each file as it goes up, then a count, then the address to open.
+It takes a few seconds — the whole site is about 260 KB.
+
+**It never deletes anything on the server.** It only adds files and overwrites
+ones with the same name. That is deliberate: if it deleted whatever was not in
+your folder, it would wipe anything you had put up by hand.
+
+> **On a Mac or Linux**, use `./deploy.sh --dry-run` and `./deploy.sh`. They do
+> exactly the same thing. They need a program called `lftp`
+> (`brew install lftp` on a Mac, `sudo apt install lftp` on Ubuntu). The
+> Windows script needs nothing installed — it uses `curl.exe`, which is already
+> part of Windows.
+
+---
+
+# Step 5 — The zip and File Manager route
+
+This is the route that needs no FTP account at all. Steps 2, 3 and 4 above are
+not needed for it.
+
+## 5a. Let the script build the zip
+
+In the website folder, open a terminal and run:
+
+```powershell
+.\deploy.ps1 -Zip
+```
+
+(If Windows blocks it: `powershell -ExecutionPolicy Bypass -File .\deploy.ps1 -Zip`)
+
+This needs no internet and no `.env.deploy`. It produces **`monoram-upload.zip`**
+in the website folder, containing exactly the 16 files that belong on the server
+— with `.htaccess` included and the build date stamped in. It prints the full
+list of what went inside, and **refuses to produce a zip at all if `.htaccess`
+is missing from it.**
+
+> **Do not zip the folder by hand in Explorer.** Selecting the files yourself is
+> how `.htaccess` gets left out and how `.sql` and `.md` files end up public. If
+> you must do it by hand — from a phone, say — include `.htaccess` and exclude
+> every `.sql`, every `.md`, and `preview.html`. The files must sit at the **top
+> level** of the zip, not inside a folder.
+
+## 5b. Upload and extract
 
 1. Sign in to cPanel and open **File Manager**.
-2. Double-click into **public_html**.
-3. Press **Select All**, then **Compress** in the top bar.
-4. Choose **Zip Archive**, name it `backup-before-update.zip`, press
-   **Compress File(s)**.
-5. Drag that zip somewhere outside `public_html` — the level above is fine.
 
-**What you should see:** a file called `backup-before-update.zip`. If the
-update goes wrong you can extract it and be back where you started.
+### ⚠️ Do this before anything else — turn on hidden files
 
-### 2b. Make the zip to upload
+**File Manager hides dotfiles by default, and `.htaccess` is a dotfile.**
+Without this setting it will not appear, you will not notice it is missing, and
+the caching rules will never reach the server. That is precisely how a whole
+round of work once went live looking unstyled.
 
-On your computer, in the website folder, select these and **only** these:
+1. In File Manager, tap **Settings** (top right).
+2. Tick **Show Hidden Files (dotfiles)**.
+3. Tap **Save**.
 
-```
-index.html      admin.html      preview.html
-app.js          admin.js        lib.js
-viewer.js       theme.js        marks.js       ambient.js
-config.js       sw.js           styles.css
-manifest.webmanifest
-icon-192.png    icon-512.png
-.htaccess
-```
+You should now see `.htaccess` in the folder listing. If you do not, it is not
+on the server and must be uploaded.
 
-Right-click → **Send to** → **Compressed (zipped) folder**. Call it
-`site.zip`.
+### Then
 
-**Do NOT upload** `patch.sql`, `patch2.sql`, `patch3.sql`, `setup.sql`,
-`DEPLOY.md`, `RUN-LOCAL.md`, `SETUP.md` or the `.git` folder. Those are your
-working files. They do not belong on the public internet.
-
-> If `.htaccess` will not show up when you select files, in Windows Explorer
-> tick **View → Hidden items** first. It is important — it forces https and
-> stops phones caching the old site.
-
-### 2c. Upload and extract
-
-1. In **File Manager**, make sure you are inside **public_html**.
-2. Press **Upload** in the top bar, choose `site.zip`, wait for the green
-   **100%** bar.
-3. Go **Back to /home/…/public_html**, then press **Reload** in the top bar.
-4. Click once on `site.zip` to select it, then press **Extract** in the top
-   bar, then **Extract File(s)** in the box that appears.
-5. When it reports how many files were written, close the box.
-6. Select `site.zip` and press **Delete** — it has done its job.
-
-**What you should see:** `index.html`, `app.js`, `styles.css` and the rest
-sitting directly inside `public_html` — not inside a folder called `site`.
-If they landed in a folder, open it, **Select All**, **Move**, and move them
-up one level into `public_html`.
-
-### 2d. Check it worked
-
-Open your website address in a browser and press **Ctrl + Shift + R** to
-force a fresh load.
-
-**What you should see:** the shop, with the gold rate section now showing a
-small **per gram / per bhori** switch above the prices. That switch is the
-easiest proof that the new files are live.
-
-> **Your address must start with `https://`.** If it says "Not secure", go to
-> cPanel → **SSL/TLS Status**, tick your domain, and press **Run AutoSSL**.
-> Wait a few minutes. Without https the phone app and the offline copy will
-> not install, no matter what else you do.
-
-### The easier way, for next time
-
-cPanel can pull straight from GitHub, so you never zip anything again:
-
-1. cPanel → **Git™ Version Control** → **Create**.
-2. Tick **Clone a Repository**.
-3. **Clone URL:** `https://github.com/EmonKarmaker/monoram-website.git`
-4. **Repository Path:** `public_html` (or a folder you then point the domain at)
-5. Press **Create**.
-
-After that, each update is: push to master on your computer, then in cPanel
-open **Git Version Control → Manage → Pull or Deploy → Update from Remote**.
-
-Worth setting up once. Ask me and I will walk you through it.
+2. Navigate into the folder that holds the live `index.html` (see step 6).
+3. Tap **Upload**, choose `monoram-upload.zip`, and wait for it to reach 100%.
+4. Go **Back to /home/.../public_html**, right-click the zip, choose
+   **Extract**, and confirm.
+5. When it asks about existing files, choose **Overwrite all**. If you skip
+   instead, the old files stay and nothing changes.
+6. **Delete the zip from the server afterwards.** Leaving it there means anyone
+   can download your whole site as one file.
+7. Check `.htaccess` is now in the listing. If it is not, upload `.htaccess` on
+   its own with the **Upload** button.
 
 ---
 
-## Step 3 — Make your phone forget the old version
+# Step 6 — Make sure it is the right folder
 
-This is the step people miss. Your phone keeps a copy of the website so it
-works without internet, and it will happily keep showing you the old one.
+**This is the most common reason an upload appears to work and the website does
+not change.** If your domain points at a subfolder rather than `public_html`,
+uploading to `public_html` succeeds perfectly and changes nothing anyone can
+see.
 
-**If you open the site in a browser:**
+To find the right folder:
 
-- Chrome on Android: tap the **⋮** menu → **Settings** → **Privacy and
-  security** → **Delete browsing data** → tick **Cached images and files** →
-  **Delete data**. Then open the site again.
-- Or simpler: open the site, pull down to refresh twice in a row.
+1. In cPanel, open **Domains**.
+2. Find your domain in the list and look at the **Document Root** column.
+   It says something like `/home/youracct/public_html` or
+   `/home/youracct/public_html/monoram`.
+3. That is your folder. The part after `/home/youracct/` is what goes in
+   `FTP_DIR` — so `public_html` or `public_html/monoram`.
 
-**If you added the shop to your home screen (the app icon):**
-
-1. Press and hold the Monoram icon on your home screen.
-2. Tap **App info** (or the ⓘ symbol).
-3. Tap **Storage** → **Clear cache**. If it still looks old, tap
-   **Clear storage** as well — this only clears the saved copy, it does not
-   log you out of anything important.
-4. Open the app again.
-
-**How to tell it worked:** the gold rate section now shows a small
-**per gram** figure underneath each big per-bhori price. If you only see the
-big price, you are still on the old copy.
+The simplest check of all: **the correct folder is the one that already
+contains the live `index.html`.** Open File Manager, go looking for
+`index.html`, and whichever folder it is in is the one you upload to.
 
 ---
 
-## Step 4 — The domain and the QR code
+# Step 7 — Make your phone forget the old version
 
-Do this last, once everything above is working.
+Your phone keeps a copy of the site so it opens instantly. After an upload it
+may still show you yesterday's copy for a while.
 
-### 4a. Buy the domain
+1. Open the site in Chrome.
+2. Tap **⋮** (three dots, top right) → **Settings**.
+3. Tap **Site settings** → **All sites** (or **Data stored**).
+4. Find your site in the list and tap it.
+5. Tap **Clear & reset**, and confirm.
+6. Close the tab completely and open the site again.
 
-1. Go to **dash.cloudflare.com** and sign in.
-2. In the left menu tap **Domain Registration** → **Register Domain**.
-3. Type the name you want and tap **Search**.
-4. Pick one that is available, tap **Purchase**, and pay.
+If you added the site to your home screen, close it from the recent-apps list
+first, otherwise it reopens from its own saved copy.
 
-Cloudflare Registrar sells at cost with no first-year discount trick, and WHOIS
-privacy is included free.
+### Proving the new version actually arrived
 
-### 4b. Point the domain at the website
+Do not judge by eye. Check the build stamp:
 
-Two halves: tell Cloudflare where the server is, and tell cPanel the domain
-is coming.
+1. On a computer, open the site, right-click → **View page source**.
+2. Find the line `<link rel="stylesheet" href="styles.css">` and click it.
+3. **The very first line of that file shows the date and time you deployed.**
 
-**Find your server's address first.** In cPanel, look at the right-hand
-sidebar under **General Information** / **Statistics** for **Shared IP
-Address**. Write that number down — it looks like `192.0.2.45`.
-
-**In Cloudflare:**
-
-1. Tap your new domain, then **DNS** → **Records** → **Add record**.
-2. Type **A**, Name `@`, IPv4 address = the number from cPanel,
-   Proxy status **DNS only** (grey cloud) for now.
-3. **Add record** again: Type **A**, Name `www`, same number,
-   Proxy **DNS only**.
-
-> Leave it on the **grey** cloud until cPanel has issued your SSL
-> certificate. The orange cloud hides your server from the certificate
-> check and AutoSSL will fail. Switch it to orange afterwards if you want
-> Cloudflare's caching.
-
-**In cPanel:**
-
-4. Open **Domains** → **Create A New Domain**, type your new domain, and set
-   the document root to **public_html** (untick "share document root" if it
-   offers a subfolder and you want the domain to be the main site).
-5. Open **SSL/TLS Status**, tick the new domain, press **Run AutoSSL**.
-
-Wait up to an hour, then open your domain. You should see the shop, with a
-padlock in the address bar.
-
-### 4c. Fill in the address, and REGENERATE THE QR CODE
-
-The QR code on your visiting card currently points nowhere, because the
-website did not have an address when the cards were designed. It must be
-regenerated once the domain works.
-
-1. Open **config.js** in your website folder.
-2. Find this line:
-
-   ```js
-   SITE_URL:     ""    // your domain once bought, e.g. https://monoram.com
+   ```css
+   /* build: 2026-08-13 01:23 */
    ```
 
-3. Put your domain between the quotes, with `https://` at the front and **no**
-   slash at the end:
+If that date is old, the upload did not arrive — go back to step 6 and check
+the folder.
 
-   ```js
-   SITE_URL:     "https://your-domain-here.com"
-   ```
+You can also check on the phone: Chrome → **⋮** → **Developer tools** is not
+available on mobile, so the view-source method on a computer is the reliable
+one. On a computer you can also open **F12 → Application → Service Workers**
+and read the cache name, which ends in the same date stamp.
 
-4. Save, then commit and push again exactly as in Step 2.
-5. Make a new QR code pointing at the same address. Any free generator will do
-   — search "QR code generator", paste your full `https://...` address, and
-   download the **SVG** or the largest PNG offered.
-6. **Test the new QR before you print anything.** Open your phone camera, point
-   it at the code on screen, and check it opens your shop. Print only after it
-   does.
-7. Send the new code to whoever prints your cards. The old cards will keep
-   pointing nowhere — they cannot be fixed, only replaced.
+---
 
+# Step 8 — Push to GitHub (backup only)
+
+```
+git add -A
+git commit -m "describe what changed"
+git push
+```
+
+**This does not deploy anything.** It saves a copy of your files to GitHub so
+they cannot be lost if this computer dies. The live website does not notice
+and does not change. Uploading in step 4 is the only thing that makes the site
+change.
+
+---
 ---
 
 # If it goes wrong
 
-### "Could not find the ... column" — the admin page says the database is behind
+## The site looks exactly the same after uploading
 
-You skipped Step 1, or it did not finish.
+Two causes, in order of likelihood:
 
-Go back to **Step 1** and run **patch2.sql** again. If the message names
-something older (`fx_density`, `layout`, `show_admin_link`), run **patch.sql**
-first and then **patch2.sql**.
+**1. You uploaded to the wrong folder.** By far the most common. Go back to
+step 6 and find the folder that already contains the live `index.html`. An
+upload to `public_html` when the domain points at `public_html/monoram` reports
+complete success and changes nothing.
 
-Running either file twice is safe.
+**2. Your phone is showing its saved copy.** Do step 7. Then check the build
+stamp — that tells you which of the two it is. If the stamp on the live site is
+new but your phone shows the old design, it is the phone. If the stamp is old,
+it is the folder.
 
-### The site loads but has no styling, or the collection never appears
+## The whole site shows "500 Internal Server Error"
 
-Press **F12** → **Console**. If it complains about a MIME type or refuses to
-load a module, `.htaccess` did not get uploaded. Check for it in File Manager
-(press **Settings** in the top right and tick **Show Hidden Files**), and
-upload it if it is missing.
+An `.htaccess` directive your host does not allow. Everything in that file is
+wrapped in `<IfModule>` guards to prevent this, but hosts vary and it is still
+possible.
 
-### "Not secure" in the address bar, or the app will not install
+**To get the site back immediately:**
 
-cPanel has not issued a certificate. Go to **SSL/TLS Status**, tick your
-domain, press **Run AutoSSL**, wait a few minutes and reload. The offline
-copy and the home-screen app will not work over plain http.
+1. cPanel → **File Manager** → your website folder.
+2. Turn on hidden files if you have not (Settings → Show Hidden Files → Save).
+3. Right-click `.htaccess` → **Rename** → change it to `.htaccess.off`
+4. Reload the site. It will be working again within seconds.
 
-### The phone still shows the old website
+The site now runs without the caching rules — usable, but phones may hold old
+files. Send me the message from cPanel → **Errors** (or your host's error log)
+and I will find which line the host objects to.
 
-The saved copy has not been replaced. Go back to **Step 3**.
+## The admin page says a column is missing
 
-If it is still stubborn, the surest fix: uninstall the home-screen icon (press
-and hold → **Uninstall** / drag to remove), open the site in Chrome, then add
-it to the home screen again from the **⋮** menu → **Add to Home screen**.
+You have not run step 1, or only ran patch2 and not patch3. Go back and run
+them in order. The exact column named in the error tells you which patch:
+`unit`, `proprietor`, `facebook_page`, `blurb` → patch2. `rate_unit` → patch3.
 
-Nothing is lost by doing this — the shop's information lives in the database,
-not on the phone.
+## FTP connection refused, or it hangs
 
-### The gold rate looks about eleven times too small
+- **Wrong username.** Check `FTP_USER` in `.env.deploy` is the full
+  `deploy@yourdomain.com` form, exactly as cPanel shows it. This is the single
+  most common cause.
+- **A certificate error** (curl exit code 60, or lftp saying "certificate").
+  Plenty of shared hosts use a certificate that does not match the FTP address.
+  Open `.env.deploy` and set `FTP_INSECURE=yes`, then try again. The connection
+  stays encrypted; the script simply stops checking the server's identity.
+- **Connection refused** (curl exit code 7). The scripts use **FTPS —
+  explicit TLS on port 21**, which is what cPanel offers by default. If your
+  host has turned plain FTP off *and* uses a different port, ask them for the
+  FTPS port and put it in `FTP_PORT`.
+- **Some hosts only allow SFTP** (port 22), which is a different protocol these
+  scripts do not speak. If your host says that, tell me and I will switch the
+  scripts over.
+- **Still stuck?** Download **WinSCP** (free, from `winscp.net`), choose File
+  protocol **FTP**, Encryption **TLS/SSL Explicit encryption**, and put in the
+  same host, username and password. It has a normal two-panel window: your
+  files on the left, the server on the right. Drag the files across. Make sure
+  its **Options → Preferences → Panels → Show hidden files** is ticked, or
+  `.htaccess` will not appear.
 
-A rate was published with the wrong unit. The four rate boxes are **per gram**
-now — the number your source gives you, around 20,000, not around 235,000.
+## Only some files uploaded
 
-Open **admin.html** → **Gold rate**. Under each box it tells you what your
-number comes to per bhori. If that reading does not look like a normal bhori
-price, the number in the box is wrong. Fix it and publish again. The old wrong
-rate can be removed from the **History** list with its **Delete** button.
+Run the deploy again. It is safe to repeat — it overwrites and never deletes,
+so a second run simply finishes the job.
 
-### Admin sign-in fails
+---
+---
 
-Work through these in order:
+# Appendix — only if you are still buying the domain
 
-1. **"Invalid login credentials"** — the email or password is wrong. Go to
-   supabase.com → your project → **Authentication** → **Users**. Find your
-   email, tap the **⋯** at the end of the row, and choose **Send password
-   recovery**. Check your email and set a new password.
-2. **No user listed at all** — the account was never made. On that same
-   **Users** page tap **Add user** → **Create new user**, type your email and
-   a password, and tick **Auto Confirm User**. Then sign in with those.
-3. **"Cannot reach the database"** — the phone has no internet, or the Supabase
-   project is paused. A free Supabase project pauses after a week with no
-   traffic. Open the project on supabase.com; if it shows a **Restore** or
-   **Resume** button, tap it and wait a minute or two.
-4. **The page is blank or says "Not connected"** — `config.js` lost its keys.
-   Open it and check `SUPABASE_URL` and `SUPABASE_KEY` are both filled in.
+Not part of the routine above. Skip this entirely if the site already has its
+address.
 
-### Something on the page looks broken after a deploy
+## Buying it
 
-Bump the cache name in **sw.js**. The line near the top reads:
+Any registrar works. Cloudflare Registrar sells at cost with no first-year
+discount trick and includes WHOIS privacy free: **dash.cloudflare.com** →
+**Domain Registration** → **Register Domain**.
 
-```js
-const CACHE = "monoram-v2";
-```
+## Pointing it at the server
 
-Change `v2` to `v3`, push, and do Step 3 again. **Do this on every deploy** —
-it is what tells every phone to fetch the new files instead of its saved copy.
+1. In cPanel, find **Shared IP Address** in the right-hand sidebar under
+   **General Information**. It looks like `192.0.2.45`.
+2. At your registrar's DNS page, add two **A** records pointing at that number:
+   one named `@`, one named `www`.
+3. If you use Cloudflare's DNS, leave both on the **grey** cloud (DNS only)
+   until cPanel has issued the certificate — the orange cloud hides your server
+   from the certificate check and AutoSSL fails. Switch to orange afterwards if
+   you want their caching.
+4. Back in cPanel: **Domains** → **Create A New Domain**, and set the document
+   root to the folder your site is in.
+5. cPanel → **SSL/TLS Status** → tick the domain → **Run AutoSSL**.
+
+Wait up to an hour, then open the domain. You should see the shop, with a
+padlock in the address bar.
+
+> **About https:** the `.htaccess` file deliberately does **not** force https
+> itself. cPanel hosts almost always redirect to https already, and two
+> redirects pointing at each other put the browser in a loop — "too many
+> redirects" — and the site stops loading entirely. If the site really is
+> reachable over plain `http://` with no redirect, turn it on in cPanel
+> (**Domains** → the domain → **Force HTTPS Redirect**) rather than in
+> `.htaccess`. One place cannot loop.
+
+## The QR code on your cards
+
+The QR code on the visiting cards points nowhere until the domain works, and it
+**must be regenerated** once it does.
+
+1. Open **config.js** and put your address between the quotes, with `https://`
+   at the front and no slash at the end:
+   `SITE_URL: "https://your-domain-here.com"`
+2. Save, then **deploy** (step 4). Pushing to GitHub will not do it.
+3. Make a new QR code pointing at the same address — any free generator; download
+   the **SVG** or the largest PNG offered.
+4. **Test it before printing anything.** Point your phone camera at the code on
+   screen and check it opens the shop.
+5. Send the new code to the printer. The old cards cannot be fixed, only
+   replaced.

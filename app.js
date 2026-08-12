@@ -178,6 +178,20 @@ const blurbHTML = p => pick(p, "blurb")
 const weightLine = p => p.weight_bhori != null
   ? `${bhoriLabel(p.weight_bhori)} \u00B7 ${num((p.weight_bhori * BHORI).toFixed(2))} g` : "";
 
+/* The line under a piece's name: its category, then its carat.
+   The shop sometimes files a piece under a category that IS its name \u2014 the
+   live data holds a piece called "BRACELET" in the category "Bracelet" \u2014 and
+   printing both reads as a mistake. Compared without case or surrounding
+   space, so "Bracelet" and "BRACELET " count as the same word. Nothing is
+   changed in the database; the second copy is simply not drawn. */
+const metaLine = p => {
+  const same = s => String(s ?? "").trim().toLowerCase();
+  const cat = pick(p, "category") || "";
+  return [same(cat) && same(cat) !== same(pick(p, "name")) ? cat : "", p.karat || ""]
+    .filter(Boolean).map(esc).join(" \u00B7 ");
+};
+const metaHTML = p => { const s = metaLine(p); return s ? `<p class="m">${s}</p>` : ""; };
+
 const ORN = { bq: "", md: "" };
 function ornament() {
   if (!ORN.bq) { ORN.bq = bouquetSVG(); ORN.md = mandalaSVG(); }
@@ -264,7 +278,7 @@ function pillHTML() {
   const P = rateParts(LATEST, "k22", PREV);
   if (!P) return "";
   const d = P.delta;
-  const delta = d ? `<span style="color:var(--${d < 0 ? "down" : "up"});font-size:12px">${
+  const delta = d ? `<span class="pd ${d < 0 ? "down" : "up"}">${
     d < 0 ? "\u2193" : "\u2191"} ${money(Math.abs(d))}</span>` : "";
   return `<div class="pill"><span class="l">${esc(karatName("k22"))}</span>
     <span class="v">${money(P.value)}</span>
@@ -298,13 +312,17 @@ function rateBlock() {
   const sv = rateParts(LATEST, "silver", PREV);
   if (sv) cells.push([t("silver"), sv]);
 
+  /* A cell carries the grade and the figure and nothing else. The unit is a
+     caption about the whole table, not a headline repeated under every
+     number, so it is printed once below the heading \u2014 and it is taken from
+     the first cell rather than worked out again, so the two can never
+     disagree about which unit is on screen. */
   const grid = cells.map(([label, P]) => {
     const d = P.delta;
     return `<div class="bcell"><p class="k">${esc(label)}</p>
       <p class="v">${money(P.value)}</p>
-      <p class="u">${esc(P.label)}</p>
-      ${P.sub ? `<p class="g">${esc(P.sub.label)} \u00B7 ${money(P.sub.value)}</p>` : ""}
       ${d ? `<p class="d ${d < 0 ? "down" : "up"}">${d < 0 ? "\u2193" : "\u2191"} ${money(Math.abs(d))}</p>` : ""}
+      ${P.sub ? `<p class="g">${esc(P.sub.label)} \u00B7 ${money(P.sub.value)}</p>` : ""}
     </div>`;
   }).join("");
 
@@ -313,14 +331,16 @@ function rateBlock() {
     <div class="wrap">
       ${sechead(`${t("effective")} ${LATEST.effective}`, t("rate_today"))}
       ${unitSwitchHTML()}
-      <div class="bandgrid">${grid}</div>
-      <p class="note" style="text-align:center;max-width:56ch;margin:20px auto 0">${esc(t("metal_only"))}</p>
+      <div class="bandtable">
+        ${cells.length ? `<p class="bandunit">${esc(cells[0][1].label)}</p>` : ""}
+        <div class="bandgrid">${grid}</div>
+      </div>
+      <p class="note bandnote">${esc(t("metal_only"))}</p>
       ${RATES.length >= 2 ? `<div class="chartwrap">
         <p class="chartnote">${esc(t("step_note"))}</p>
-        <svg class="mchart" id="chart" viewBox="0 0 640 165" preserveAspectRatio="xMidYMid meet" role="img"></svg>
+        <svg class="mchart" id="chart" viewBox="0 0 400 190" preserveAspectRatio="xMidYMid meet" role="img"></svg>
       </div>` : ""}
-      <div class="sharewrap"><button class="btn o" id="shareBtn" type="button"
-        style="display:inline-flex;padding:12px 22px">${esc(t("share_rate"))}</button></div>
+      <div class="sharewrap"><button class="btn o sharebtn" id="shareBtn" type="button">${esc(t("share_rate"))}</button></div>
     </div></section>`;
 }
 
@@ -447,7 +467,7 @@ function viewThread() {
       <div class="node"></div>
       <div class="side">
         <h3>${esc(pick(p, "name") || "")}</h3>
-        <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
+        ${metaHTML(p)}
         ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
         ${blurbHTML(p)}
         ${priceHTML(p)}
@@ -477,13 +497,12 @@ function viewInvitation() {
   const cards = list.map(p => `<article class="card${p.sold ? " is-sold" : ""}">
       <div class="ph">${photo(p)}</div>
       <h3>${esc(pick(p, "name") || "")}</h3>
-      <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
+      ${metaHTML(p)}
       ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
       ${blurbHTML(p)}
       ${priceHTML(p)}
-      <p style="text-align:center;margin:6px 0 0"><a class="ask" href="${waLink(pick(p, "name"))}"
-        data-track="${p.id ?? ""}" style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;
-        color:var(--accent);text-decoration:none">${esc(t("enquire"))}</a></p>
+      <p class="askwrap"><a class="ask" href="${waLink(pick(p, "name"))}"
+        data-track="${p.id ?? ""}">${esc(t("enquire"))}</a></p>
     </article>`).join("");
 
   return `<div class="sheet">
@@ -542,7 +561,7 @@ function viewOrnate() {
       <div class="ph">${photo(p)}</div>
       <div>
         <h3>${esc(pick(p, "name") || "")}</h3>
-        <p class="m">${esc(pick(p, "category") || "")}${p.karat ? " \u00B7 " + esc(p.karat) : ""}</p>
+        ${metaHTML(p)}
         ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
         ${blurbHTML(p)}
         ${priceHTML(p)}
@@ -573,7 +592,11 @@ function drawChart() {
   const pts = RATES.slice(-6).filter(p => bhoriRate(p, "k22") != null);
   if (pts.length < 2) return;
   const vals = pts.map(p => bhoriRate(p, "k22"));
-  const W = 640, H = 165, L = 62, R = 8, T = 12, B = 24;
+  /* The viewBox is close to the width the chart actually gets on a phone, so
+     the axis figures land near their stated pixel size instead of being
+     scaled down to a quarter of it. At 640 wide a 9px label rendered at
+     four and a half real pixels on a 360px screen — unreadable. */
+  const W = 400, H = 190, L = 88, R = 6, T = 12, B = 26;
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = (hi - lo) * 0.35 || 1000, min = lo - pad, max = hi + pad;
   const y = v => T + (H - T - B) * (1 - (v - min) / (max - min));
@@ -589,10 +612,16 @@ function drawChart() {
     if (i < n - 1) d += ` L ${(x(i) + seg).toFixed(1)} ${y(vals[i + 1]).toFixed(1)}`;
   }
   out += `<path class="stepline" d="${d}"/>`;
+  /* Every point keeps its knob, but with more than four of them the date
+     labels would sit on top of each other, so only every few are drawn —
+     always including the last, which is today's. */
+  const every = n > 4 ? Math.ceil(n / 3) : 1;
   pts.forEach((p, i) => {
     const short = String(p.effective || "").split(",").pop().trim().slice(0, 12);
+    const label = (i % every === 0 || i === n - 1)
+      ? `<text class="xlab" x="${(x(i) + seg / 2).toFixed(1)}" y="${H - 8}">${esc(short)}</text>` : "";
     out += `<circle class="knob" cx="${(x(i) + seg / 2).toFixed(1)}" cy="${y(vals[i]).toFixed(1)}" r="3.4"/>`
-        +  `<text class="xlab" x="${(x(i) + seg / 2).toFixed(1)}" y="${H - 7}">${esc(short)}</text>`;
+        +  label;
   });
   svg.innerHTML = out;
 }

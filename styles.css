@@ -1,3 +1,7 @@
+/* build: dev */
+/* ^ The deploy script replaces that line with the date and time it
+   uploaded. On the live site, View source and look at the first line of
+   this file: if it still says an old date, the upload did not arrive. */
 :root{
   --bg:#0f0c0c;--panel:#171313;--panel-2:#1f1a19;--line:#2c2826;
   --text:#f9f2e1;--mute:#928b7d;--accent:#edc163;--accent-soft:#f2d391;
@@ -10,11 +14,60 @@
   --serif:"Cormorant Garamond",Georgia,serif;
   --sans:"Poppins",system-ui,-apple-system,sans-serif;
   --bn:"Noto Sans Bengali","Poppins",system-ui,sans-serif;
+
+  /* =================================================================
+     THE SCALE
+
+     Every size in the rate band, the collection cards, the sticky bar
+     and the visitor's controls comes from this list. Nothing in those
+     four areas may invent a number of its own — that is how the drift
+     started. Each step has one job, named beside it.
+
+     Fonts have fixed roles as well:
+       --serif  Cormorant Garamond. Headings and the shop name. NOTHING
+                else, and never a figure: its default numerals are
+                old-style, so they sit at different heights and a price
+                set in it looks mistyped.
+       --sans   Poppins. Every number, label, button and body line.
+       --bn     Noto Sans Bengali. All Bangla, including Bangla digits.
+       --num    whichever of the two above suits the language on screen.
+                Anything that prints a figure uses this, so switching to
+                Bangla switches the digits with it.
+     ================================================================= */
+  --num:var(--sans);
+
+  --fs-display:clamp(25px,5.2vw,42px); /* display      the one h1 on the page      */
+  --fs-section:clamp(25px,4.6vw,38px); /* section head h2 above a band             */
+  --fs-title:21px;                     /* card title   a piece's name              */
+  --fs-value:24px;                     /* value        a price, or a rate figure   */
+  --fs-value-lg:28px;                  /* value, large when it is the whole point  */
+  --fs-body:14px;                      /* body         sentences, never smaller    */
+  --fs-label:12.5px;                   /* label        buttons, chips, field names */
+  --fs-caption:12.5px;                 /* caption      a weight, a note under a value */
+  --fs-micro:11px;                     /* micro        uppercase letterspaced kickers */
+
+  --s-1:4px;  --s-2:6px;  --s-3:8px;  --s-4:12px;
+  --s-5:16px; --s-6:24px; --s-7:32px; --s-8:48px;
+
+  /* the smallest thing a thumb is ever asked to hit */
+  --tap:44px;
+  /* The fixed topbar's real height. Anything that can be jumped to keeps
+     this much clear above it, so a heading never lands underneath. */
+  --topbar-h:47px;
+  /* The sticky bar's real height, measured, WITHOUT the phone's safe area.
+     .bar sets itself to it and the page pads itself by it, so the two
+     cannot drift apart and slice the last card again. */
+  --bar-h:62px;
 }
+body.bn{--num:var(--bn)}
+@media(max-width:359px){:root{--bar-h:80px}}   /* the labels take a second line */
 *{box-sizing:border-box}
 html{overflow-x:hidden;background:var(--bg);transition:background .3s}
+/* The page ends a whole sticky bar plus the phone's own gesture inset above
+   the bottom edge, so the last card is never sliced by the call buttons. */
 body{margin:0;overflow-x:hidden;background:transparent;color:var(--text);font-family:var(--sans);
-  font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:74px;
+  font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--bar-h) + env(safe-area-inset-bottom) + var(--s-5));
   transition:color .3s}
 body.bn{font-family:var(--bn)}
 .wrap{max-width:980px;margin:0 auto;padding:0 20px}
@@ -71,66 +124,158 @@ svg{display:block;width:100%;height:auto}
 .lock.sm .mk{width:40px;height:40px}.lock.sm .wm{width:150px;margin-top:11px}.lock.sm .jw{width:76px}
 
 /* ---------- shared pieces ---------- */
+/* The frame always has a shape of its own — every layout sets one, and this
+   square is the fallback if one ever forgets. The photograph then fills that
+   shape absolutely rather than as a flex item, so a tall or wide original
+   crops from the centre instead of sitting short of one edge and leaving a
+   bar of the frame's own background showing beside it. */
 .ph{background:var(--ph);border:1px solid var(--line);position:relative;overflow:hidden;
+  aspect-ratio:1/1;
   display:flex;align-items:center;justify-content:center;font-size:8.5px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--ph-text)}
-.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;display:block}
 .tag{position:absolute;top:9px;left:9px;background:var(--accent);color:var(--btn-text);font-size:8px;
   letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;font-weight:500;z-index:2}
 body.bn .tag{letter-spacing:normal;text-transform:none;font-size:10px}
 .soldb{position:absolute;top:9px;right:9px;background:var(--panel);border:1px solid var(--line);
   color:var(--mute);font-size:9px;padding:3px 9px;z-index:2}
 .is-sold .ph img{filter:grayscale(1);opacity:.5}
-.price{font-variant-numeric:tabular-nums}
-.price.req{color:var(--accent);font-size:13px}
+/* A PRICE IS NEVER CORMORANT.
+   Cormorant Garamond's figures are old-style — the 3, 4, 7 and 9 hang below
+   the line and the 6 and 8 rise above it — so "13,655" looked mistyped next
+   to "13,030". Every figure on the page is set in --num (Poppins, or Noto
+   Sans Bengali when the page is in Bangla) with lining, tabular numerals, so
+   digits are one height and one width and a column of them lines up. */
+.price,.bcell .v,.bcell .d,.bcell .g,.bandunit,
+.pill .v,.pill .pg,.pill .pd,
+.invrate .v,.invrate .g,
+.bead .w,.card .w,.plate .w,.featured .w,
+.oline,.oline b,.spec b,.gridtext,.xlab,
+.viewer .vbar .p,.viewer .vcount,
+input,select{
+  font-family:var(--num);
+  font-variant-numeric:lining-nums tabular-nums;
+}
+.price.req{color:var(--accent);font-size:var(--fs-label)}
+
+/* ENQUIRE — a real button, not an underlined word.
+   Shared by all three layouts so the affordance is the same wherever the
+   customer meets it, and tall enough to hit on a phone. */
+.ask,.more{display:inline-flex;align-items:center;justify-content:center;
+  min-height:var(--tap);padding:0 var(--s-5);border:1px solid var(--accent-line);
+  border-radius:99px;background:transparent;color:var(--accent);text-decoration:none;
+  font-family:var(--sans);font-size:var(--fs-label);font-weight:500;line-height:1.2;
+  letter-spacing:.12em;text-transform:uppercase;transition:.18s}
+.ask:hover,.more:hover{background:var(--accent-tint);border-color:var(--accent)}
+.ask:focus-visible,.more:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body.bn .ask,body.bn .more{font-family:var(--bn);letter-spacing:normal;text-transform:none;
+  font-size:var(--fs-body)}
+.askwrap{text-align:center;margin:var(--s-4) 0 0}
 /* the owner's one-line description, never more than two lines on a card */
-.blurb{margin:7px 0 0;font-size:12px;line-height:1.6;color:var(--mute);
+.blurb{margin:var(--s-2) 0 0;font-size:var(--fs-body);line-height:1.6;color:var(--mute);
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
   overflow:hidden;overflow-wrap:break-word}
-.kick{margin:0;font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
-body.bn .kick{letter-spacing:.06em;text-transform:none;font-size:12px}
-.sechead{text-align:center;margin-bottom:26px}
-.sechead h2{font-size:clamp(25px,4.6vw,38px);margin:9px 0 0}
-.rule{margin:14px auto 0;width:120px;opacity:.9}
-.note{font-size:11.5px;color:var(--mute);line-height:1.8}
-.emptymsg{padding:34px 0;text-align:center;color:var(--mute);font-size:13px}
+.kick{margin:0;font-family:var(--sans);font-size:var(--fs-micro);letter-spacing:.3em;
+  text-transform:uppercase;color:var(--accent)}
+body.bn .kick{font-family:var(--bn);letter-spacing:.06em;text-transform:none;
+  font-size:var(--fs-caption)}
+.sechead{text-align:center;margin-bottom:var(--s-6)}
+.sechead h2{font-size:var(--fs-section);margin:var(--s-3) 0 0}
+.rule{margin:var(--s-4) auto 0;width:120px;opacity:.9}
+.note{font-size:var(--fs-caption);color:var(--mute);line-height:1.8}
+.emptymsg{padding:var(--s-7) 0;text-align:center;color:var(--mute);font-size:var(--fs-body)}
+
+/* JUMP TARGETS.
+   The topbar is fixed, so a browser that scrolls one of these to the top of
+   the window puts its heading underneath the bar. Every id a filter chip, a
+   festival call-to-action or a plain #link can land on keeps the bar's own
+   height clear above it, plus a little air. */
+#collection,#rate,#why,.catalogue,.band,.tools,.trust{
+  scroll-margin-top:calc(var(--topbar-h) + var(--s-4));
+}
+html{scroll-padding-top:calc(var(--topbar-h) + var(--s-4))}
 
 /* ---------- rate ---------- */
 .band{background:color-mix(in srgb,var(--panel) 82%,transparent);border-top:1px solid var(--line);
   border-bottom:1px solid var(--line);padding:42px 0;position:relative;overflow:hidden;
   backdrop-filter:blur(2px)}
 .band .wrap{position:relative;z-index:1}
-.bandgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;
-  background:var(--line);border:1px solid var(--line);overflow:hidden}
-.bcell{background:transparent;padding:19px 14px;text-align:center}
-.bcell .k{margin:0;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
-body.bn .bcell .k{letter-spacing:normal;text-transform:none;font-size:12px}
-.bcell .v{font-family:var(--serif);font-size:26px;color:var(--accent-soft);margin:7px 0 0;
-  font-variant-numeric:tabular-nums}
-body.bn .bcell .v{font-family:var(--bn);font-size:21px}
-/* the visitor's own gram / bhori switch, sitting with the rate */
-.unitsw{display:flex;gap:7px;justify-content:center;margin:0 0 18px}
-.uchip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:6px 15px;
-  font-family:inherit;font-size:11.5px;color:var(--mute);cursor:pointer;line-height:1.4}
-.uchip[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--accent-line);
-  color:var(--accent)}
+/* THE UNIT, ONCE.
+   It used to be repeated under all three figures at nearly the size of the
+   figures themselves, which read as three headlines rather than one table
+   with a caption. It is now a column header over the figures — once for the
+   whole table, in the caption size, and set above the column it describes
+   rather than immediately under a switch that says the same word. */
+.bandtable{max-width:520px;margin:0 auto}
+.bandunit{margin:0 0 var(--s-2);padding-right:var(--s-5);text-align:right;
+  font-family:var(--sans);font-size:var(--fs-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--mute)}
+body.bn .bandunit{font-family:var(--bn);letter-spacing:normal;text-transform:none;
+  font-size:var(--fs-caption)}
+
+/* THE LEDGER.
+   One full-width row per grade, grade on the left and figure on the right.
+   An auto-fit grid stranded the third of three grades alone on a second row
+   beside an empty cell; rows cannot strand anything, whatever the shop has
+   filled in — two grades, three, or four with silver. Capped in width so it
+   stays a table rather than a stretched-out receipt on a desktop. */
+.bandgrid{display:grid;grid-template-columns:1fr;
+  background:transparent;border:1px solid var(--line);overflow:hidden}
+.bcell{background:transparent;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;
+  column-gap:var(--s-4);padding:var(--s-4) var(--s-5)}
+.bcell:first-child{border-top:0}
+.bcell .k{grid-column:1;grid-row:1;margin:0;font-family:var(--sans);
+  font-size:var(--fs-micro);letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+  overflow-wrap:anywhere}
+body.bn .bcell .k{font-family:var(--bn);letter-spacing:normal;text-transform:none;
+  font-size:var(--fs-caption)}
+.bcell .v{grid-column:2;grid-row:1;margin:0;font-family:var(--num);
+  font-size:var(--fs-value);font-weight:500;line-height:1.15;color:var(--accent-soft);
+  font-variant-numeric:lining-nums tabular-nums;text-align:right;white-space:nowrap}
+/* the change sits directly under its own figure, a caption's distance away */
+.bcell .d{grid-column:2;grid-row:2;margin:var(--s-1) 0 0;font-family:var(--num);
+  font-size:var(--fs-micro);font-variant-numeric:lining-nums tabular-nums;text-align:right}
+.bcell .d.down{color:var(--down)}.bcell .d.up{color:var(--up)}
+/* only drawn when the shop publishes both units at once */
+.bcell .g{grid-column:2;grid-row:3;margin:var(--s-2) 0 0;font-family:var(--num);
+  font-size:var(--fs-micro);color:var(--mute);
+  font-variant-numeric:lining-nums tabular-nums;text-align:right;white-space:nowrap}
+
+/* THE SWITCH.
+   One track, two segments — not two loose buttons. The active segment is
+   filled with the accent, the other is transparent inside the same gold
+   hairline, so it reads as one control with a position rather than as two
+   things that might both be off. */
+.unitsw{display:flex;width:fit-content;max-width:100%;margin:var(--s-5) auto var(--s-6);
+  padding:3px;gap:0;border:1px solid var(--accent-line);border-radius:99px;
+  background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.uchip{flex:0 1 auto;min-width:0;min-height:var(--tap);
+  display:flex;align-items:center;justify-content:center;
+  padding:0 clamp(12px,4.5vw,22px);border:0;border-radius:99px;background:transparent;
+  font-family:var(--sans);font-size:var(--fs-label);font-weight:400;line-height:1.25;
+  color:var(--mute);cursor:pointer;transition:background .18s,color .18s;
+  overflow-wrap:anywhere}
+body.bn .uchip{font-family:var(--bn)}
+.uchip[aria-pressed="true"]{background:var(--accent);color:var(--btn-text);font-weight:500}
 .uchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-.bcell .u{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);
-  margin:2px 0 0;opacity:.8}
-body.bn .bcell .u{letter-spacing:normal;text-transform:none;font-size:11px}
-.bcell .g{font-size:11px;color:var(--mute);margin:6px 0 0;padding-top:6px;
-  border-top:1px solid var(--line);display:inline-block}
-.bcell .d{font-size:10.5px;margin:5px 0 0}
-.bcell .d.down{color:var(--down)}.bcell .d.up{color:var(--up)}
-.chartwrap{margin:26px auto 0;max-width:640px}
-.chartnote{text-align:center;font-size:11px;color:var(--mute);margin:0 0 10px;line-height:1.7}
+.bandnote{text-align:center;max-width:56ch;margin:var(--s-6) auto 0}
+/* Capped near the viewBox's own width so the chart is drawn at roughly 1:1 —
+   the axis figures then read at the size they are set in, on a phone and on
+   a desktop alike. */
+.chartwrap{margin:var(--s-6) auto 0;max-width:420px}
+.chartnote{text-align:center;font-size:var(--fs-caption);color:var(--mute);margin:0 0 var(--s-4);
+  line-height:1.7}
 .gridline{stroke:var(--line);stroke-width:1}
-.gridtext{fill:var(--mute);font-size:9px}
+.gridtext{fill:var(--mute);font-family:var(--num);font-size:14px;
+  font-variant-numeric:lining-nums tabular-nums}
 .stepline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
 .knob{fill:var(--panel);stroke:var(--accent-soft);stroke-width:1.6}
-.xlab{fill:var(--mute);font-size:9px;text-anchor:middle}
-.sharewrap{text-align:center;margin-top:22px}
+.xlab{fill:var(--mute);font-family:var(--num);font-size:13px;text-anchor:middle}
+.sharewrap{text-align:center;margin-top:var(--s-6)}
+.sharebtn{display:inline-flex;min-height:var(--tap);padding:0 var(--s-6)}
 
 /* ---------- tools ---------- */
 .tools{padding:46px 0;border-bottom:1px solid var(--line)}
@@ -185,21 +330,33 @@ footer .prop{margin-top:10px;font-size:12.5px;color:var(--text);opacity:.85}
 .fine{margin-top:20px;font-size:10.5px;color:var(--mute);opacity:.8;line-height:1.8}
 
 /* ---------- sticky bar ---------- */
+/* Its own height is --bar-h, and the page pads itself by the same variable,
+   so the two are one decision rather than two numbers that drifted 11px
+   apart and cut the bottom off the last card. The safe-area inset is added
+   on top of the padding, not swapped in for it, so there is still a clear
+   gap above an Android gesture bar rather than the buttons ending exactly
+   where it begins. */
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--shade);border-top:1px solid var(--line);
-  padding:9px 0 calc(9px + env(safe-area-inset-bottom));backdrop-filter:blur(10px);z-index:45}
-/* Flex, not a fixed grid: a button the shop has not filled in is display:none,
-   and a grid column would leave a hole where it used to be. */
-.bar .wrap{display:flex;gap:9px}
-.bar .btn{flex:1 1 0;min-width:0}
-/* Facebook joins as a narrow icon only. Measured at 320px in Bangla the two
-   word buttons still hold their labels with room to spare, so the third item
-   does not crowd them. */
-.bar .bfb{flex:0 0 52px;padding:13px 0}
-.bar .bfb svg{width:17px;height:17px}
-.btn{display:flex;align-items:center;justify-content:center;padding:13px;border-radius:2px;
-  text-decoration:none;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;
-  border:1px solid transparent;cursor:pointer;font-family:inherit}
-body.bn .btn{letter-spacing:normal;text-transform:none;font-size:13px}
+  min-height:var(--bar-h);
+  padding:var(--s-3) 0 calc(var(--s-3) + env(safe-area-inset-bottom));
+  backdrop-filter:blur(10px);z-index:45}
+/* Flex, not a fixed grid: a grid of 1fr 1fr sent Facebook — the third child —
+   onto a row of its own at full width, where its icon grew to fill a third
+   of the screen. Flex keeps all three on one row, and a button the shop has
+   not filled in is display:none and simply takes no space. */
+.bar .wrap{display:flex;gap:var(--s-2);align-items:stretch;padding:0 var(--s-4)}
+.bar .btn{flex:1 1 0;min-width:0;min-height:var(--tap)}
+/* Facebook rides along as an icon of a fixed size. It can never be taller
+   than the two word buttons because it is the same flex row, and never
+   wider than its own 52px basis. */
+.bar .bfb{flex:0 0 52px;padding:0}
+.bar .bfb svg{width:19px;height:19px}
+.btn{display:flex;align-items:center;justify-content:center;padding:var(--s-3) var(--s-3);
+  border-radius:2px;text-decoration:none;font-family:var(--sans);font-size:var(--fs-label);
+  letter-spacing:.04em;text-transform:uppercase;font-weight:500;line-height:1.25;text-align:center;
+  border:1px solid transparent;cursor:pointer}
+body.bn .btn{font-family:var(--bn);letter-spacing:normal;text-transform:none;
+  font-size:var(--fs-body)}
 .btn.g{background:linear-gradient(100deg,var(--btn-bg),var(--btn-bg-2) 52%,var(--btn-bg));color:var(--btn-text)}
 .btn.o{border-color:var(--accent-line);color:var(--accent);background:transparent}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -222,12 +379,16 @@ body.lang-minimal .orn{display:none}
 .lay-thread .hero .lock{position:relative}
 .lay-thread .pill{margin-top:22px;display:inline-flex;align-items:center;gap:13px;position:relative;
   border:1px solid var(--accent-line);border-radius:99px;padding:10px 20px;background:var(--shade)}
-.lay-thread .pill .l{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
-.lay-thread .pill .v{font-size:18px;font-weight:500;color:var(--accent-soft);font-variant-numeric:tabular-nums}
-.pill .pu{font-size:10px;color:var(--mute)}
-body.bn .pill .pu{font-size:11px}
-.pill .pg{font-size:10.5px;color:var(--mute);padding-left:13px;border-left:1px solid var(--line);
-  font-variant-numeric:tabular-nums}
+/* One set of rules for the hero pill, used by both layouts that draw it. */
+.pill .l{font-size:var(--fs-micro);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+body.bn .pill .l{letter-spacing:normal;text-transform:none;font-size:var(--fs-caption)}
+.pill .v{font-size:18px;font-weight:500;color:var(--accent-soft)}
+.pill .pu{font-size:var(--fs-micro);color:var(--mute)}
+body.bn .pill .pu{font-size:var(--fs-caption)}
+.pill .pd{font-size:var(--fs-micro)}
+.pill .pd.down{color:var(--down)}.pill .pd.up{color:var(--up)}
+.pill .pg{font-size:var(--fs-micro);color:var(--mute);padding-left:var(--s-4);
+  border-left:1px solid var(--line)}
 .lay-thread .catalogue{padding:48px 0 20px;position:relative}
 .lay-thread .thread{position:absolute;left:50%;top:22px;bottom:22px;width:1px;
   background:linear-gradient(transparent,var(--accent) 12%,var(--accent) 88%,transparent);
@@ -242,11 +403,11 @@ body.bn .pill .pu{font-size:11px}
 .lay-thread .bead:nth-child(even) .side{order:1;text-align:right}
 .lay-thread .bead:nth-child(even) .art{order:3;justify-content:flex-start}
 .lay-thread .bead h3{font-size:25px;line-height:1.15}
-.lay-thread .bead .m{margin:4px 0 0;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
-.lay-thread .bead .w{margin:7px 0 0;font-size:12.5px;color:var(--mute)}
-.lay-thread .bead .price{margin:6px 0 0;font-family:var(--serif);font-size:25px}
-.lay-thread .bead .ask{display:inline-block;margin-top:7px;font-size:10px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
+.lay-thread .bead .m{margin:var(--s-1) 0 0;font-size:var(--fs-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--accent)}
+.lay-thread .bead .w{margin:var(--s-2) 0 0;font-size:var(--fs-caption);color:var(--mute)}
+.lay-thread .bead .price{margin:var(--s-2) 0 0;font-size:var(--fs-value)}
+.lay-thread .bead .ask{margin-top:var(--s-4)}
 /* Phones: the photograph gets the full width of the content column and the
    words sit under it. The old 40%-wide thumbnail was 128px on a 360px screen
    — too small to see the filigree, which is the thing that sells the piece.
@@ -262,15 +423,13 @@ body.bn .pill .pu{font-size:11px}
   .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{grid-column:2;grid-row:1;justify-content:flex-start}
   .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{grid-column:2;grid-row:2;text-align:left;overflow-wrap:break-word}
   .lay-thread .bead .ph{width:100%;max-width:none;aspect-ratio:3/2}
-  .lay-thread .bead h3{font-size:21px;line-height:1.25}
-  .lay-thread .bead .m{margin-top:5px;font-size:10.5px;letter-spacing:.13em}
-  .lay-thread .bead .w{margin-top:6px;font-size:12.5px}
-  .lay-thread .bead .blurb{margin-top:7px;font-size:12.5px}
-  .lay-thread .bead .price{margin-top:7px;font-size:24px}
-  .lay-thread .bead .price.req{font-size:15px}
-  .lay-thread .bead .ask{margin-top:9px;font-size:10.5px;letter-spacing:.12em}
-  body.bn .lay-thread .bead .m{letter-spacing:normal;text-transform:none;font-size:12px}
-  body.bn .lay-thread .bead .ask{letter-spacing:normal;text-transform:none;font-size:12px}
+  .lay-thread .bead h3{font-size:var(--fs-title);line-height:1.25}
+  .lay-thread .bead .m{margin-top:var(--s-2);letter-spacing:.13em}
+  .lay-thread .bead .w{margin-top:var(--s-2)}
+  .lay-thread .bead .blurb{margin-top:var(--s-2);font-size:var(--fs-body)}
+  .lay-thread .bead .price{margin-top:var(--s-2)}
+  .lay-thread .bead .price.req{font-size:var(--fs-body)}
+  body.bn .lay-thread .bead .m{letter-spacing:normal;text-transform:none;font-size:var(--fs-caption)}
 }
 
 /* ================= LAYOUT: invitation ================= */
@@ -287,13 +446,17 @@ body.bn .pill .pu{font-size:11px}
 .lay-invitation h1{font-size:clamp(23px,4.6vw,36px);line-height:1.2;margin:24px auto 0;max-width:20ch;text-align:center}
 .lay-invitation .said{margin:14px auto 0;max-width:46ch;font-size:13px;color:var(--mute);text-align:center;line-height:1.85}
 .lay-invitation .invrate{margin:26px auto 0;text-align:center}
-.lay-invitation .invrate .v{font-family:var(--serif);font-size:34px;color:var(--accent-soft);font-variant-numeric:tabular-nums}
-.lay-invitation .invrate .l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
-.lay-invitation .invrate .g{font-size:11.5px;color:var(--mute);margin-top:2px}
-body.bn .lay-invitation .invrate .l{letter-spacing:normal;text-transform:none;font-size:12px}
+.lay-invitation .invrate .v{font-family:var(--num);font-size:var(--fs-value-lg);font-weight:500;
+  color:var(--accent-soft);font-variant-numeric:lining-nums tabular-nums;line-height:1.15;
+  margin-top:var(--s-2)}
+.lay-invitation .invrate .l{font-family:var(--sans);font-size:var(--fs-micro);letter-spacing:.22em;
+  text-transform:uppercase;color:var(--accent)}
+.lay-invitation .invrate .g{font-size:var(--fs-micro);color:var(--mute);margin-top:var(--s-1)}
+body.bn .lay-invitation .invrate .l{font-family:var(--bn);letter-spacing:normal;
+  text-transform:none;font-size:var(--fs-caption)}
 .lay-invitation .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin-top:12px}
 .lay-invitation .card .ph{aspect-ratio:1/1}
-.lay-invitation .card h3{font-size:20px;margin-top:12px;text-align:center}
+.lay-invitation .card h3{font-size:var(--fs-title);margin-top:var(--s-4);text-align:center}
 .lay-invitation .card .blurb{text-align:center}
 /* One card per row on a phone. Two columns leaves a 155px photograph and cuts
    the description off mid-word; the landscape crop keeps the page from
@@ -301,13 +464,14 @@ body.bn .lay-invitation .invrate .l{letter-spacing:normal;text-transform:none;fo
 @media(max-width:700px){
   .lay-invitation .cards{grid-template-columns:minmax(0,1fr);gap:20px}
   .lay-invitation .card .ph{aspect-ratio:4/3}
-  .lay-invitation .card h3{font-size:22px}
-  .lay-invitation .card .blurb{font-size:12.5px}
+  .lay-invitation .card .blurb{font-size:var(--fs-body)}
 }
-.lay-invitation .card .m{margin:3px 0 0;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--accent);text-align:center}
-.lay-invitation .card .w{margin:5px 0 0;font-size:11px;color:var(--mute);text-align:center}
-.lay-invitation .card .price{margin:5px 0 0;font-family:var(--serif);font-size:20px;text-align:center}
+.lay-invitation .card .m{margin:var(--s-1) 0 0;font-size:var(--fs-micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);text-align:center}
+body.bn .lay-invitation .card .m{letter-spacing:normal;text-transform:none;font-size:var(--fs-caption)}
+.lay-invitation .card .w{margin:var(--s-2) 0 0;font-size:var(--fs-caption);color:var(--mute);
+  text-align:center}
+.lay-invitation .card .price{margin:var(--s-2) 0 0;font-size:var(--fs-value);text-align:center}
 .lay-invitation section{padding:40px 0}
 .lay-invitation .band{margin-top:0}
 
@@ -327,12 +491,6 @@ body.bn .lay-invitation .invrate .l{letter-spacing:normal;text-transform:none;fo
 .lay-ornate .hero .said{margin:16px auto 0;max-width:50ch;font-size:13.5px;color:var(--mute);line-height:1.8}
 .lay-ornate .pill{margin-top:22px;display:inline-flex;align-items:center;gap:13px;
   border:1px solid var(--accent-line);border-radius:99px;padding:10px 20px;background:var(--shade)}
-.lay-ornate .pill .l{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
-.lay-ornate .pill .v{font-size:18px;font-weight:500;color:var(--accent-soft);font-variant-numeric:tabular-nums}
-.pill .pu{font-size:10px;color:var(--mute)}
-body.bn .pill .pu{font-size:11px}
-.pill .pg{font-size:10.5px;color:var(--mute);padding-left:13px;border-left:1px solid var(--line);
-  font-variant-numeric:tabular-nums}
 .lay-ornate .catalogue{padding:50px 0 12px;position:relative;border-top:1px solid var(--line)}
 .lay-ornate .featured{display:grid;grid-template-columns:1.05fr 1fr;gap:36px;align-items:center;
   padding-bottom:32px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
@@ -346,23 +504,27 @@ body.bn .pill .pu{font-size:11px}
 .spec div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;
   border-bottom:1px solid var(--line);font-size:12.5px;color:var(--mute)}
 .spec b{font-weight:400;color:var(--text);font-variant-numeric:tabular-nums}
-.more{display:inline-block;margin-top:17px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:4px}
+.more{margin-top:var(--s-5)}
 .lay-ornate .plate{display:grid;grid-template-columns:.72fr 1fr;gap:28px;align-items:center;
   padding:20px 0;border-bottom:1px solid var(--line)}
 .lay-ornate .plate:nth-of-type(even) .ph{order:2}
 .lay-ornate .plate .ph{aspect-ratio:1/1}
 .lay-ornate .plate h3{font-size:27px;line-height:1.15}
-.lay-ornate .plate .m{margin:5px 0 0;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
-.lay-ornate .plate .w{margin:8px 0 0;font-size:12.5px;color:var(--mute)}
-.lay-ornate .plate .price{margin:7px 0 0;font-family:var(--serif);font-size:27px}
-.lay-ornate .plate .ask{display:inline-block;margin-top:8px;font-size:10px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
+.lay-ornate .plate .m{margin:var(--s-2) 0 0;font-size:var(--fs-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--accent)}
+body.bn .lay-ornate .plate .m{letter-spacing:normal;text-transform:none;font-size:var(--fs-caption)}
+.lay-ornate .plate .w{margin:var(--s-3) 0 0;font-size:var(--fs-caption);color:var(--mute)}
+.lay-ornate .plate .price{margin:var(--s-2) 0 0;font-size:var(--fs-value)}
+.lay-ornate .plate .ask{margin-top:var(--s-4)}
+/* Below 760px the plate is a picture beside a column of words. That column
+   must stay wide enough for a 44px-tall Enquire button to sit in without
+   pushing the row sideways, so the picture gives up width, not the words. */
 @media(max-width:760px){
-  .lay-ornate .plate{grid-template-columns:132px 1fr;gap:15px;padding:16px 0}
+  .lay-ornate .plate{grid-template-columns:132px minmax(0,1fr);gap:var(--s-4);
+    padding:var(--s-5) 0;align-items:start}
   .lay-ornate .plate:nth-of-type(even) .ph{order:0}
-  .lay-ornate .plate h3{font-size:20px}.lay-ornate .plate .price{font-size:20px}
-  .lay-ornate .plate .blurb{font-size:12px}
+  .lay-ornate .plate h3{font-size:var(--fs-title)}
+  .lay-ornate .plate .blurb{font-size:var(--fs-body)}
 }
 /* The rate band is drawn in ALL THREE layouts, so these two must be positioned
    for all three. Scoped to .lay-ornate they fell back to a 200px block at full
@@ -371,9 +533,12 @@ body.bn .pill .pu{font-size:11px}
 .band .orn.r{right:-8%;top:50%;transform:translateY(-50%);width:min(40vw,280px);opacity:.12}
 .catnote{margin:24px auto 0;max-width:56ch;text-align:center;font-size:11.5px;color:var(--mute);
   line-height:1.8;padding-bottom:30px}
-.filters{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:0 0 20px}
-.fchip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:7px 15px;
-  font-family:inherit;font-size:12.5px;color:var(--mute);cursor:pointer}
+.filters{display:flex;gap:var(--s-3);flex-wrap:wrap;justify-content:center;padding:0 0 var(--s-6)}
+.fchip{display:inline-flex;align-items:center;min-height:var(--tap);
+  border:1px solid var(--line);background:transparent;border-radius:99px;padding:0 var(--s-5);
+  font-family:var(--sans);font-size:var(--fs-label);color:var(--mute);cursor:pointer;
+  line-height:1.2}
+body.bn .fchip{font-family:var(--bn);font-size:var(--fs-body)}
 .fchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--btn-text)}
 .fchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -412,13 +577,17 @@ body.bn .adminlink{letter-spacing:normal;text-transform:none;font-size:12.5px}
 
 /* ================= TAP-TO-ZOOM PHOTO VIEWER ================= */
 /* the magnifier badge, and the invisible tap target under it */
+/* The whole photograph is the tap target. The badge is only the sign that it
+   is one, pinned to the bottom-right corner at the same inset on every card
+   and in every layout. --shade is dark on Night and light on Ivory, so the
+   disc inverts with the palette while the hairline and the glyph stay gold. */
 .zoombtn{position:absolute;inset:0;z-index:3;border:0;background:transparent;padding:0;
   cursor:zoom-in;display:flex;align-items:flex-end;justify-content:flex-end;
   -webkit-tap-highlight-color:transparent}
-.zoombtn .zb{display:flex;align-items:center;justify-content:center;width:27px;height:27px;
-  margin:8px;border-radius:50%;background:var(--shade);border:1px solid var(--accent-line);
-  color:var(--accent);backdrop-filter:blur(4px);transition:.18s}
-.zoombtn .zb svg{width:14px;height:14px}
+.zoombtn .zb{display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+  flex:none;margin:var(--s-3);border-radius:50%;background:var(--shade);
+  border:1px solid var(--accent-line);color:var(--accent);backdrop-filter:blur(4px);transition:.18s}
+.zoombtn .zb svg{width:18px;height:18px}
 .zoombtn:hover .zb{background:var(--accent);color:var(--btn-text);border-color:var(--accent)}
 .zoombtn:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
 .is-sold .zoombtn .zb{opacity:.6}
@@ -466,18 +635,16 @@ body.vlock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   color:var(--accent)}
 body.bn .viewer .vbar .m{letter-spacing:normal;text-transform:none;font-size:12px}
 .viewer .vbar .w{margin:6px 0 0;font-size:12px;color:var(--mute)}
-.viewer .vbar .p{margin:7px 0 0;font-family:var(--serif);font-size:24px;color:var(--accent-soft);
-  font-variant-numeric:tabular-nums}
-body.bn .viewer .vbar .p{font-family:var(--bn);font-size:20px}
-.viewer .vbar .p .req{font-family:var(--sans);font-size:13px;color:var(--accent)}
-.viewer .vbar .p .sold{font-family:var(--sans);font-size:13px;color:var(--mute)}
+.viewer .vbar .p{margin:var(--s-2) 0 0;font-family:var(--num);font-size:var(--fs-value);
+  font-weight:500;color:var(--accent-soft);font-variant-numeric:lining-nums tabular-nums}
+.viewer .vbar .p .req{font-weight:400;font-size:var(--fs-body);color:var(--accent)}
+.viewer .vbar .p .sold{font-weight:400;font-size:var(--fs-body);color:var(--mute)}
 .viewer.barsoff .vbar{opacity:0;transform:translateY(12px);pointer-events:none}
 .viewer.zoomed .vcount{opacity:0}
 
 @media(max-width:520px){
-  .viewer .vnav{width:38px;height:38px}
-  .viewer .vbar h3{font-size:19px}
-  .viewer .vbar .p{font-size:20px}
+  .viewer .vnav{width:var(--tap);height:var(--tap)}
+  .viewer .vbar h3{font-size:var(--fs-title)}
 }
 /* nothing moves for anyone who has asked their phone to stop animating */
 @media(prefers-reduced-motion:reduce){

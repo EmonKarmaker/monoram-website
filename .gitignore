@@ -1,0 +1,24 @@
+# The FTP password lives in .env.deploy. It must never be committed —
+# GitHub is a backup of the website, not a place for the server login.
+.env.deploy
+.env.deploy.local
+.env
+
+# Built by deploy.sh / deploy.ps1 just before uploading, then thrown away.
+# It is a throwaway copy of the site with the build date stamped in.
+.deploy-staging/
+
+# Editor and operating-system leftovers
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# Dependencies, if any are ever installed here
+node_modules/
+
+# Zips made for the manual File Manager upload
+*.zip

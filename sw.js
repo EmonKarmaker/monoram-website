@@ -6,7 +6,7 @@
    Falls back to cache when the phone is offline. */
 /* preview.html is deliberately NOT listed below — it is a local development
    page full of sample data and must never be cached onto a visitor's phone. */
-const CACHE = "monoram-v3";
+const CACHE = "monoram-v4";
 const ASSETS = ["./index.html", "./styles.css", "./app.js", "./lib.js",
                 "./config.js", "./theme.js", "./marks.js", "./ambient.js",
                 "./viewer.js", "./manifest.webmanifest",
