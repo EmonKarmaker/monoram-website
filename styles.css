@@ -274,8 +274,14 @@ body.bn .uchip{font-family:var(--bn)}
 .stepline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
 .knob{fill:var(--panel);stroke:var(--accent-soft);stroke-width:1.6}
 .xlab{fill:var(--mute);font-family:var(--num);font-size:13px;text-anchor:middle}
-.sharewrap{text-align:center;margin-top:var(--s-6)}
-.sharebtn{display:inline-flex;min-height:var(--tap);padding:0 var(--s-6)}
+/* the label on the last point grows leftwards from the edge, so it cannot
+   be cut off by the edge of the picture */
+.xlab.xend{text-anchor:end}
+/* Centred with flex rather than text-align, because .btn further down the
+   sheet sets display:flex — which makes the button a block-level box that
+   text-align cannot move, and it sat against the left edge of the band. */
+.sharewrap{display:flex;justify-content:center;margin-top:var(--s-6)}
+.sharebtn{min-height:var(--tap);padding:0 var(--s-6)}
 
 /* ---------- tools ---------- */
 .tools{padding:46px 0;border-bottom:1px solid var(--line)}

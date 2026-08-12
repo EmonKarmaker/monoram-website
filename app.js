@@ -585,6 +585,30 @@ function viewOrnate() {
 }
 
 /* ===================== chart ===================== */
+
+/* The short form of an "effective from" date, for the foot of the chart.
+
+   `effective` is free text the owner types, so this cannot parse it — it can
+   only shorten it safely. It used to be cut at twelve characters, which turned
+   "12 August 2026" into "12 August 20" and made the year look like a mistake.
+
+   Instead: drop a trailing year, because every point on the chart is within
+   days of the others and the year is the same on all of them; then, if it is
+   still too long for the space, cut at a SPACE and mark the cut with an
+   ellipsis, never mid-word. Bengali digits are matched as well as Latin ones,
+   since the owner may type the date in either. */
+const AXIS_MAX = 11;
+export function axisDate(effective) {
+  let s = String(effective ?? "").split(",").pop().trim();
+  /* A four-figure year at the end, in Latin or Bengali digits — but only
+     when a space or comma separates it, so "12/08/2026" is left whole
+     instead of being trimmed to a dangling "12/08/". */
+  s = s.replace(/[\s,]+(?:[0-9]{4}|[০-৯]{4})$/, "").trim();
+  if (s.length <= AXIS_MAX) return s;
+  const cut = s.lastIndexOf(" ", AXIS_MAX);
+  return (cut > 0 ? s.slice(0, cut) : s.slice(0, AXIS_MAX)) + "…";
+}
+
 function drawChart() {
   const svg = $("chart");
   if (!svg || RATES.length < 2) return;
@@ -612,14 +636,23 @@ function drawChart() {
     if (i < n - 1) d += ` L ${(x(i) + seg).toFixed(1)} ${y(vals[i + 1]).toFixed(1)}`;
   }
   out += `<path class="stepline" d="${d}"/>`;
-  /* Every point keeps its knob, but with more than four of them the date
-     labels would sit on top of each other, so only every few are drawn —
-     always including the last, which is today's. */
-  const every = n > 4 ? Math.ceil(n / 3) : 1;
+  /* Every point keeps its knob, but the date labels are wider than the gap
+     between points, so only some are drawn. They are chosen from the LAST
+     point backwards: today's rate is always labelled, and the spacing stays
+     even. Counting forwards instead left the final label pressed up against
+     its neighbour whenever the count did not divide cleanly. */
+  const every = n > 3 ? Math.ceil(n / 3) : 1;
+  const labelled = new Set();
+  for (let i = n - 1; i >= 0; i -= every) labelled.add(i);
+  /* The last point sits close to the right-hand edge, so a label centred on
+     it hangs off the end of the picture and is cut in half. That one is
+     anchored to the edge instead and grows leftwards. */
+  const lastLabel = Math.max(...labelled);
   pts.forEach((p, i) => {
-    const short = String(p.effective || "").split(",").pop().trim().slice(0, 12);
-    const label = (i % every === 0 || i === n - 1)
-      ? `<text class="xlab" x="${(x(i) + seg / 2).toFixed(1)}" y="${H - 8}">${esc(short)}</text>` : "";
+    const atEnd = i === lastLabel;
+    const lx = atEnd ? (W - R) : (x(i) + seg / 2);
+    const label = labelled.has(i)
+      ? `<text class="xlab${atEnd ? " xend" : ""}" x="${lx.toFixed(1)}" y="${H - 8}">${esc(axisDate(p.effective))}</text>` : "";
     out += `<circle class="knob" cx="${(x(i) + seg / 2).toFixed(1)}" cy="${y(vals[i]).toFixed(1)}" r="3.4"/>`
         +  label;
   });
