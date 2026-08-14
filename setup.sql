@@ -98,8 +98,16 @@ create table if not exists public.products (
   sold             boolean default false,
   photo_url        text,
   photo_path       text,
+  -- The pixel size of the saved photograph, written by the admin page when
+  -- it compresses the upload. The website reserves exactly this shape
+  -- before the picture arrives, so the page does not jump on a slow phone.
+  -- NULL means "not measured" — the website measures the picture itself.
+  photo_w          int,
+  photo_h          int,
   sort             int default 0,
-  created_at       timestamptz default now()
+  created_at       timestamptz default now(),
+  constraint products_photo_size_sane
+    check ((photo_w is null or photo_w > 0) and (photo_h is null or photo_h > 0))
 );
 create index if not exists products_sort_idx on public.products (sort, created_at desc);
 

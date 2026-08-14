@@ -39,29 +39,84 @@
 #  old styles.css: the new index.html and app.js arrived, the stylesheet
 #  did not, and the new parts of the page rendered with no design at all.
 #
-#  "no-cache" does NOT mean "do not keep it". The phone still stores the
-#  file and still shows it instantly — it just asks the server "has this
-#  changed?" first. When it has not, the reply is an empty 304 and
-#  nothing is downloaded again. The cost is one small question per file;
-#  the benefit is that an upload is never invisible.
+#  HOW IT WORKS NOW. Every deploy works out one short code from the
+#  contents of the site — something like a3f19c4d — and writes it into
+#  index.html, so the page asks the server for
+#
+#      styles.css?v=a3f19c4d      app.js?v=a3f19c4d
+#
+#  instead of plain styles.css. Change one letter of one file and the
+#  code changes, every address on the page changes with it, and a phone
+#  that has never seen those addresses cannot possibly have an old copy
+#  of them. Change nothing and the code stays the same, so a phone that
+#  has been here before downloads nothing at all.
+#
+#  That is why the two rules below look contradictory and are not:
+#
+#    * A file ASKED FOR WITH a ?v= code may be kept for a year, because
+#      that exact address will never hold different contents.
+#    * The very same file asked for WITHOUT one must be re-checked every
+#      time, because then there is nothing in the address to tell an old
+#      copy from a new one.
+#
+#  index.html itself never carries a code — it is the address the
+#  customer types. It is the one file that must always be re-checked,
+#  and it is the file that names the version of everything else. That is
+#  what makes it impossible to end up running a new app.js against an
+#  old lib.js: they are named together, by one file, in one breath.
 # ---------------------------------------------------------------------
+
+# Is there a ?v=... on the end of this request? If so, remember it as
+# VERSIONED, which the two rules below then ask about.
+#
+# This has to be mod_rewrite. The obvious alternative, SetEnvIf, cannot
+# do it: SetEnvIf reads request headers and a short list of special
+# values, and the query string is in neither — its Request_URI is the
+# path only, with everything after the ? already stripped. Written that
+# way it silently matches nothing, every file quietly falls back to
+# being re-checked, and the fix looks like it works while doing nothing.
+# It was written that way first, and only testing against a real Apache
+# caught it.
+#
+# No address is rewritten here. The "-" means "change nothing"; the rule
+# exists only for the [E=...] flag on the end, which sets the marker.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{QUERY_STRING} (^|&)v=[A-Za-z0-9._-]+
+  RewriteRule \.(js|css)$ - [E=VERSIONED:1]
+</IfModule>
+
 <IfModule mod_headers.c>
 
-  # --- The service worker: never kept, not even for a second. ---
-  # This one file decides which version of everything else the phone is
-  # allowed to use offline. If the browser caches sw.js, it can keep
-  # running last month's rules about the whole site. "no-store" tells it
-  # to keep no copy whatsoever and fetch a fresh one every time.
-  <FilesMatch "^sw\.js$">
-    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
+  # --- Fingerprinted scripts and the stylesheet. ---
+  # env=VERSIONED  -> asked for as app.js?v=a3f19c4d : keep for a year.
+  # env=!VERSIONED -> asked for as plain app.js      : re-check always.
+  #
+  # If mod_rewrite is switched off, VERSIONED is never set, the second
+  # line applies to everything, and the site falls back to re-checking
+  # every file on every visit. Slower, still correct, never stale.
+  #
+  # config.js is deliberately NOT in this list. It carries the Supabase
+  # address and key, it is the one file that might ever be corrected by
+  # hand in the cPanel File Manager, and it is under a kilobyte. It gets
+  # a ?v= code like the rest — so a deploy always lands — but it is also
+  # re-checked every visit, so an edit made on the server lands too.
+  <FilesMatch "^(styles\.css|app\.js|lib\.js|viewer\.js|theme\.js|marks\.js|ambient\.js|admin\.js)$">
+    Header set Cache-Control "public, max-age=31536000, immutable" env=VERSIONED
+    Header set Cache-Control "no-cache, must-revalidate" env=!VERSIONED
+    # If mod_expires is also on, it will have added an Expires date in the
+    # past for these. Cache-Control outranks Expires in every browser, but
+    # a header saying one thing and another saying the opposite is asking
+    # for trouble on a host we cannot inspect. Drop it.
+    Header unset Expires env=VERSIONED
   </FilesMatch>
 
-  # --- The pages, the stylesheet and the scripts: always re-checked. ---
-  # None of these has a version number in its filename, so the only way
-  # the phone can tell an old one from a new one is to ask.
-  <FilesMatch "^(index\.html|admin\.html|preview\.html|styles\.css|app\.js|lib\.js|viewer\.js|theme\.js|marks\.js|ambient\.js|admin\.js|config\.js|manifest\.webmanifest)$">
+  # --- The pages and the connection settings: always re-checked. ---
+  # "no-cache" does NOT mean "do not keep it". The phone still stores the
+  # file and still shows it instantly — it just asks the server "has this
+  # changed?" first. When it has not, the reply is an empty 304 and
+  # nothing is downloaded again.
+  <FilesMatch "^(index\.html|admin\.html|preview\.html|config\.js|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 
@@ -73,10 +128,29 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
+  # --- The service worker: never kept, not even for a second. ---
+  # LAST ON PURPOSE. This one file decides which version of everything
+  # else the phone is allowed to use offline, and a cached service worker
+  # cannot be replaced by a new one — it keeps running last month's rules
+  # about the whole site. sw.js is a .js file, so it would otherwise be
+  # caught by a rule above; coming last, this block overwrites whatever
+  # they set. "no-store" tells the browser to keep no copy whatsoever.
+  <FilesMatch "^sw\.js$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
 </IfModule>
 
 # The same instruction again, for hosts that have mod_expires switched on
-# but not mod_headers. Harmless when both are on — mod_headers wins.
+# but not mod_headers. Deliberately conservative: it tells every script and
+# stylesheet to be re-checked, ignoring the ?v= code, because mod_expires
+# cannot see a query string. On such a host the site is a little slower and
+# completely correct — which is the right way round to fail.
+#
+# When both modules are on, mod_headers runs later and its Cache-Control
+# replaces the one set here, so the year-long rule above still applies.
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/html                   "access plus 0 seconds"
@@ -135,6 +209,39 @@
 <IfModule mod_autoindex.c>
   Options -Indexes
 </IfModule>
+
+
+# ---------------------------------------------------------------------
+#  5. If the phone STILL shows an old page
+#
+#  Everything above is what this site can control. A shared host can add
+#  a cache of its own in front of it, and then its answer wins over ours.
+#  This cannot be checked from here — it has to be looked at on the live
+#  server. Three things to look for, in order:
+#
+#  1. cPanel -> "Optimize Website" / "LiteSpeed Cache" / "LScache".
+#     Many cPanel accounts run LiteSpeed rather than Apache. LiteSpeed
+#     reads this file and obeys mod_headers, but its own page cache sits
+#     in FRONT and can serve a saved copy of index.html without asking.
+#     If there is a LiteSpeed Cache panel, either turn it off for this
+#     account or add index.html to its "do not cache" list.
+#
+#  2. Cloudflare, or any other proxy in front of the domain. In the
+#     Cloudflare dashboard the domain shows an orange cloud when its
+#     cache is in the path. Caching -> Configuration -> Purge Everything
+#     once, then set Browser Cache TTL to "Respect Existing Headers".
+#     Leaving it on "4 hours" overrides everything in this file.
+#
+#  3. What the server actually replies. On a computer, open the site,
+#     press F12, the Network tab, tick "Disable cache" off, reload, and
+#     click index.html. The Response Headers must show
+#         cache-control: no-cache, must-revalidate
+#     and app.js?v=... must show
+#         cache-control: public, max-age=31536000, immutable
+#     If either shows something else — a max-age on index.html, or an
+#     "x-litespeed-cache: hit" line — the answer is coming from a cache
+#     in front of Apache and points 1 and 2 are where to look.
+# ---------------------------------------------------------------------
 
 
 # =====================================================================

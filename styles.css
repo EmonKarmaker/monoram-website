@@ -34,7 +34,15 @@
                 Anything that prints a figure uses this, so switching to
                 Bangla switches the digits with it.
      ================================================================= */
-  --num:var(--sans);
+  /* Poppins has no taka sign. Left to itself the browser borrows one from
+     whatever the device happens to have — Segoe UI on Windows, something
+     else on a phone — and every one of those draws it shorter and lighter
+     than Poppins' own figures, so "৳20,168" looked like a small sign glued
+     to big digits. Noto Sans Bengali is already loaded for the Bangla side
+     of the site and its taka matches Poppins in weight and height, so it is
+     named here as the fallback. The DIGITS still come from Poppins: a font
+     stack is resolved one character at a time, and Poppins has those. */
+  --num:"Poppins","Noto Sans Bengali",system-ui,-apple-system,sans-serif;
 
   --fs-display:clamp(25px,5.2vw,42px); /* display      the one h1 on the page      */
   --fs-section:clamp(25px,4.6vw,38px); /* section head h2 above a band             */
@@ -124,13 +132,39 @@ svg{display:block;width:100%;height:auto}
 .lock.sm .mk{width:40px;height:40px}.lock.sm .wm{width:150px;margin-top:11px}.lock.sm .jw{width:76px}
 
 /* ---------- shared pieces ---------- */
-/* The frame always has a shape of its own — every layout sets one, and this
-   square is the fallback if one ever forgets. The photograph then fills that
-   shape absolutely rather than as a flex item, so a tall or wide original
-   crops from the centre instead of sitting short of one edge and leaving a
-   bar of the frame's own background showing beside it. */
+/* THE FRAME ALWAYS HAS A SHAPE BEFORE THE PICTURE ARRIVES.
+   Three numbers decide it, and every layout below sets its own:
+
+     --ar        the photograph's own shape, width ÷ height. app.js writes
+                 it onto the element from the size recorded at upload, so it
+                 beats everything here. The value in the stylesheet is only
+                 the guess used for a piece uploaded before the shop began
+                 recording it — the shape that layout used to crop to, so
+                 nothing about the existing collection moves.
+     --ar-tall   the tallest shape allowed. A 9:16 phone snap would
+                 otherwise take a whole screen for one item. This is 3:4
+                 in EVERY layout, because "too tall" is measured against
+                 the reader's screen and that is the same size whichever
+                 layout the shop has chosen. A true 3:4 portrait is
+                 therefore never cropped anywhere on the site.
+     --ar-wide   the widest. This one DOES change from layout to layout,
+                 because a wide photograph's height is the column's width
+                 divided by its ratio — 16:9 is 160px tall down the middle
+                 of a phone but only 74px in the ornate list's 132px
+                 thumbnail column. Each layout below sets it so the
+                 shortest possible photograph still stands about 100px
+                 tall, which is the point where the magnifier badge and
+                 the CASUAL tag stop having room to sit in the picture.
+
+   Between those two bounds the photograph is shown exactly as it was taken
+   and NOTHING is cropped. Outside them the frame stops at the bound and
+   object-fit:cover trims only the excess. The photograph fills the frame
+   absolutely rather than as a flex item, so it crops from the centre
+   instead of leaving a bar of the frame's own background beside it.
+   The viewer always shows the whole picture regardless — see .vimg. */
 .ph{background:var(--ph);border:1px solid var(--line);position:relative;overflow:hidden;
-  aspect-ratio:1/1;
+  --ar:1; --ar-tall:.75; --ar-wide:1.78;
+  aspect-ratio:clamp(var(--ar-tall),var(--ar),var(--ar-wide));
   display:flex;align-items:center;justify-content:center;font-size:8.5px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--ph-text)}
 .ph img{position:absolute;inset:0;width:100%;height:100%;
@@ -273,10 +307,18 @@ body.bn .uchip{font-family:var(--bn)}
   font-variant-numeric:lining-nums tabular-nums}
 .stepline{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
 .knob{fill:var(--panel);stroke:var(--accent-soft);stroke-width:1.6}
+/* The unit, named once at the head of the axis. Words, not figures, so it
+   takes the sentence font rather than --num. */
+.axisunit{fill:var(--mute);font-family:var(--sans);font-size:10.5px;
+  letter-spacing:.06em}
+body.bn .axisunit{font-family:var(--bn);letter-spacing:normal;font-size:10px}
 .xlab{fill:var(--mute);font-family:var(--num);font-size:13px;text-anchor:middle}
-/* the label on the last point grows leftwards from the edge, so it cannot
-   be cut off by the edge of the picture */
+/* A label that would overhang stops at the edge of the plot and grows
+   inwards — leftwards from the right-hand end, rightwards from the left. */
 .xlab.xend{text-anchor:end}
+.xlab.xstart{text-anchor:start}
+/* the clock, under the date, only when two rates fall on one day */
+.xtime{font-size:11px;opacity:.8}
 /* Centred with flex rather than text-align, because .btn further down the
    sheet sets display:flex — which makes the button a block-level box that
    text-align cannot move, and it sat against the left edge of the band. */
@@ -403,7 +445,9 @@ body.bn .pill .pu{font-size:var(--fs-caption)}
 .lay-thread .bead{display:grid;grid-template-columns:1fr 24px 1fr;align-items:center;gap:12px}
 .lay-thread .bead .node{order:2;width:9px;height:9px;background:var(--accent);transform:rotate(45deg);margin:0 auto}
 .lay-thread .bead .art{display:flex}
-.lay-thread .bead .ph{aspect-ratio:1/1;width:190px;max-width:100%}
+/* A narrow side column — 190px, so 16:9 would be a 107px strip. The widest
+   allowed shape is pulled in to 1.4 (190 ÷ 1.4 = 136px tall) to stop that. */
+.lay-thread .bead .ph{--ar:1;--ar-wide:1.4;width:190px;max-width:100%}
 .lay-thread .bead:nth-child(odd) .side{order:3;text-align:left}
 .lay-thread .bead:nth-child(odd) .art{order:1;justify-content:flex-end}
 .lay-thread .bead:nth-child(even) .side{order:1;text-align:right}
@@ -428,7 +472,9 @@ body.bn .pill .pu{font-size:var(--fs-caption)}
   .lay-thread .bead .node,.lay-thread .bead:nth-child(odd) .node,.lay-thread .bead:nth-child(even) .node{grid-column:1;grid-row:1;margin-top:14px}
   .lay-thread .bead .art,.lay-thread .bead:nth-child(odd) .art,.lay-thread .bead:nth-child(even) .art{grid-column:2;grid-row:1;justify-content:flex-start}
   .lay-thread .bead .side,.lay-thread .bead:nth-child(odd) .side,.lay-thread .bead:nth-child(even) .side{grid-column:2;grid-row:2;text-align:left;overflow-wrap:break-word}
-  .lay-thread .bead .ph{width:100%;max-width:none;aspect-ratio:3/2}
+  /* full width of the phone now, so a wide photograph is 160px tall even at
+     16:9 and the bound goes back to the widest the site allows anywhere */
+  .lay-thread .bead .ph{width:100%;max-width:none;--ar:1.5;--ar-wide:1.78}
   .lay-thread .bead h3{font-size:var(--fs-title);line-height:1.25}
   .lay-thread .bead .m{margin-top:var(--s-2);letter-spacing:.13em}
   .lay-thread .bead .w{margin-top:var(--s-2)}
@@ -460,8 +506,16 @@ body.bn .pill .pu{font-size:var(--fs-caption)}
 .lay-invitation .invrate .g{font-size:var(--fs-micro);color:var(--mute);margin-top:var(--s-1)}
 body.bn .lay-invitation .invrate .l{font-family:var(--bn);letter-spacing:normal;
   text-transform:none;font-size:var(--fs-caption)}
-.lay-invitation .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin-top:12px}
-.lay-invitation .card .ph{aspect-ratio:1/1}
+/* align-items:start, because the cards are no longer all one height. Grid
+   stretches its items by default, which would pull every short card down to
+   the height of the tallest in its row and hang its Enquire link in mid-air
+   under a gap. Each card now takes its own height and the row simply ends
+   where the tallest card does. */
+.lay-invitation .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  align-items:start;gap:18px;margin-top:12px}
+/* Three columns of about 333px on a desktop, so 1.6 keeps the widest card
+   above 200px tall and stops one row of the grid reading as a gap. */
+.lay-invitation .card .ph{--ar:1;--ar-wide:1.6}
 .lay-invitation .card h3{font-size:var(--fs-title);margin-top:var(--s-4);text-align:center}
 .lay-invitation .card .blurb{text-align:center}
 /* One card per row on a phone. Two columns leaves a 155px photograph and cuts
@@ -469,7 +523,8 @@ body.bn .lay-invitation .invrate .l{font-family:var(--bn);letter-spacing:normal;
    running away in length. */
 @media(max-width:700px){
   .lay-invitation .cards{grid-template-columns:minmax(0,1fr);gap:20px}
-  .lay-invitation .card .ph{aspect-ratio:4/3}
+  /* one card per row: full width, so it may use the full range */
+  .lay-invitation .card .ph{--ar:1.3333;--ar-wide:1.78}
   .lay-invitation .card .blurb{font-size:var(--fs-body)}
 }
 .lay-invitation .card .m{margin:var(--s-1) 0 0;font-size:var(--fs-micro);letter-spacing:.14em;
@@ -503,8 +558,11 @@ body.bn .lay-invitation .card .m{letter-spacing:normal;text-transform:none;font-
 .lay-ornate .featured .orn.mand{right:-10%;top:50%;transform:translateY(-50%);width:min(52vw,380px);opacity:.13}
 .lay-ornate .featured>*:not(.orn){position:relative;z-index:1}
 @media(max-width:760px){.lay-ornate .featured{grid-template-columns:1fr;gap:20px}}
-.lay-ornate .featured .ph{aspect-ratio:4/5}
-@media(max-width:760px){.lay-ornate .featured .ph{aspect-ratio:1/1}}
+/* The largest picture on the page, and the widest bound is held short of a
+   true letterbox because a featured piece that reads as a banner stops
+   looking like the piece. */
+.lay-ornate .featured .ph{--ar:.8;--ar-wide:1.6}
+@media(max-width:760px){.lay-ornate .featured .ph{--ar:1;--ar-wide:1.78}}
 .lay-ornate .featured h3{font-size:clamp(26px,4.4vw,38px);line-height:1.12;margin:11px 0 0}
 .spec{margin:18px 0 0;border-top:1px solid var(--line)}
 .spec div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;
@@ -514,7 +572,7 @@ body.bn .lay-invitation .card .m{letter-spacing:normal;text-transform:none;font-
 .lay-ornate .plate{display:grid;grid-template-columns:.72fr 1fr;gap:28px;align-items:center;
   padding:20px 0;border-bottom:1px solid var(--line)}
 .lay-ornate .plate:nth-of-type(even) .ph{order:2}
-.lay-ornate .plate .ph{aspect-ratio:1/1}
+.lay-ornate .plate .ph{--ar:1;--ar-wide:1.5}
 .lay-ornate .plate h3{font-size:27px;line-height:1.15}
 .lay-ornate .plate .m{margin:var(--s-2) 0 0;font-size:var(--fs-micro);letter-spacing:.18em;
   text-transform:uppercase;color:var(--accent)}
@@ -528,6 +586,10 @@ body.bn .lay-ornate .plate .m{letter-spacing:normal;text-transform:none;font-siz
 @media(max-width:760px){
   .lay-ornate .plate{grid-template-columns:132px minmax(0,1fr);gap:var(--s-4);
     padding:var(--s-5) 0;align-items:start}
+  /* The narrowest photograph column on the site. 16:9 across 132px is a 74px
+     strip with a 38px magnifier badge sitting in it, so the widest allowed
+     shape is pulled in here more than anywhere else: 132 ÷ 1.35 = 98px. */
+  .lay-ornate .plate .ph{--ar-wide:1.35}
   .lay-ornate .plate:nth-of-type(even) .ph{order:0}
   .lay-ornate .plate h3{font-size:var(--fs-title)}
   .lay-ornate .plate .blurb{font-size:var(--fs-body)}

@@ -218,13 +218,21 @@ $("rateList").addEventListener("click", async e => {
 });
 
 /* ===================== products ===================== */
+/* Shrink an upload onto a canvas and hand back the JPEG — TOGETHER WITH the
+   size it was drawn at. The shape of the picture is known for certain right
+   here and nowhere else afterwards, so it is returned rather than thrown
+   away: the website stores it and uses it to reserve the right amount of
+   space before the photograph has downloaded, which is what stops the page
+   jumping about on a slow phone. w and h are the saved pixels, not the
+   camera's original ones. */
 async function compress(file, max = 1200, quality = 0.82) {
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
   cv.getContext("2d").drawImage(bmp, 0, 0, w, h);
-  return await new Promise(r => cv.toBlob(r, "image/jpeg", quality));
+  const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", quality));
+  return { blob, w, h };
 }
 function clearItemForm() {
   ["i_id","i_name","i_name_bn","i_cat","i_cat_bn","i_blurb","i_blurb_bn",
@@ -276,20 +284,43 @@ $("saveItem").addEventListener("click", async () => {
     };
     const file = $("i_photo").files[0];
     if (file) {
-      const blob = await compress(file);
+      const { blob, w, h } = await compress(file);
       const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
       const up = await SB.storage.from("photos").upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw up.error;
       row.photo_path = path;
       row.photo_url = SB.storage.from("photos").getPublicUrl(path).data.publicUrl;
+      /* saved with the picture, so the website can hold its shape open
+         before the picture itself has come down the wire */
+      row.photo_w = w;
+      row.photo_h = h;
     }
     const id = $("i_id").value;
     // only one featured piece at a time
     if (row.featured) await SB.from("products").update({ featured: false }).neq("id", id || -1);
-    const res = id ? await SB.from("products").update(row).eq("id", id)
-                   : await SB.from("products").insert(row);
+    const put = r => id ? SB.from("products").update(r).eq("id", id)
+                        : SB.from("products").insert(r);
+    let res = await put(row);
+
+    /* The website files can reach the server before patch4.sql has been run,
+       and then photo_w / photo_h do not exist in the database yet. Losing
+       everything the owner just typed over that would be absurd, so the piece
+       is saved again without those two columns and the shortfall is explained
+       rather than shown as a raw error. Nothing else is ever retried. */
+    let noShape = false;
+    if (res.error && missingColumn(res.error) && /photo_[wh]/.test(String(res.error.message || ""))) {
+      delete row.photo_w; delete row.photo_h;
+      res = await put(row);
+      noShape = !res.error;
+    }
     if (res.error) throw res.error;
-    msg($("itemMsg"), id ? "Saved." : "Added to the collection.");
+
+    if (noShape) msg($("itemMsg"),
+      "<b>Saved — but not the shape of the photograph.</b><br>" +
+      "Open Supabase &rarr; SQL Editor, paste in the file <b>patch4.sql</b> from your website " +
+      "folder and press Run. Then edit this piece and choose its photograph again, and it will " +
+      "keep its own proportions instead of being cropped square.", "err");
+    else msg($("itemMsg"), id ? "Saved." : "Added to the collection.");
     clearItemForm(); loadItems();
   } catch (err) {
     msg($("itemMsg"), esc(err.message || String(err)), "err");
@@ -573,7 +604,7 @@ $("saveFest").addEventListener("click", async () => {
       throw new Error("That option needs a picture, because the words are inside it.");
     const file = $("f_image").files[0];
     if (file) {
-      const blob = await compress(file, 1600, 0.85);
+      const { blob } = await compress(file, 1600, 0.85);   // the festival card crops to a band; its shape is not stored
       const path = `festivals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
       const up = await SB.storage.from("photos").upload(path, blob, { contentType: "image/jpeg" });
       if (up.error) throw up.error;

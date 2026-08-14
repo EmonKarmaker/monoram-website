@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHAPE TEST — Monoram Jewellers (not the real shop)</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0f0c0c">
+<link rel="stylesheet" href="styles.css">
+<style>
+#sampleFlag{position:fixed;top:0;left:0;right:0;z-index:9999;pointer-events:none;
+  background:#7a1f1f;color:#fff;font:500 11px/1.45 Poppins,system-ui,sans-serif;
+  letter-spacing:.08em;text-align:center;padding:5px 10px}
+body{padding-top:26px}
+.topbar{top:26px}
+</style>
+</head>
+<body>
+
+<div id="sampleFlag">SHAPE TEST — MADE-UP DATA, NOT CONNECTED TO THE SHOP'S DATABASE</div>
+
+<div class="topbar" id="topbar"><div class="wrap">
+  <span class="tb-brand">
+    <span class="tb-mark" id="tbMark"></span>
+    <span class="tb-name" id="tbName"></span>
+  </span>
+  <span class="ctl">
+    <button class="cbtn cbtn-icon" id="fxBtn" type="button" title=""></button>
+    <button class="cbtn" id="modeBtn" type="button"></button>
+    <button class="cbtn" id="langBtn" type="button"></button>
+  </span>
+</div></div>
+
+<div id="festHost"></div>
+<div class="banner hide" id="banner"><p id="bannerText"></p></div>
+<div id="setupWarn"></div>
+
+<main id="stage"></main>
+
+<nav class="bar"><div class="wrap" id="barWrap">
+  <a class="btn g" id="callBtn" href="#"></a>
+  <a class="btn o" id="waBtn" href="#"></a>
+  <a class="btn o bfb hide" id="fbBtn" href="#" target="_blank" rel="noopener"></a>
+</div></nav>
+
+<canvas id="rateCanvas" width="1080" height="1350" style="display:none"></canvas>
+
+<script src="config.js"></script>
+<script src="marks.js"></script>
+<script>
+/* SHAPE TEST — sample data only. Setting window.PREVIEW_DATA makes app.js
+   skip Supabase entirely. Nothing below is real. */
+(function () {
+  var q = new URLSearchParams(location.search);
+
+  /* A photograph of an exact pixel size, drawn as an SVG so it needs no
+     network. It carries a grid and its own size in the corner so a crop is
+     obvious in a screenshot: if the numbers or the outer border are missing,
+     the frame cropped it. Served through /img/W/H so the test can be run
+     with the download deliberately slowed down. */
+  function shot(w, h, a, b, label) {
+    var url = "/img/" + w + "/" + h + "/" + encodeURIComponent(a.slice(1)) +
+              "/" + encodeURIComponent(b.slice(1)) + "/" + encodeURIComponent(label);
+    return url;
+  }
+
+  var P = [
+    { w: 900,  h: 1200, a: "#8a6a2f", b: "#e8c87a", nm: "TALL 3:4 portrait ring",  cat: "SAMPLE A", kt: "22K" },
+    { w: 1200, h: 1200, a: "#6d5424", b: "#d9b563", nm: "SQUARE 1:1 pendant",      cat: "SAMPLE A", kt: "21K" },
+    { w: 1200, h: 675,  a: "#4f3d1c", b: "#c2a057", nm: "WIDE 16:9 bracelet",      cat: "SAMPLE B", kt: "22K" },
+    { w: 675,  h: 1200, a: "#7b5f2a", b: "#e0bd6e", nm: "BEYOND TALL 9:16 chain",  cat: "SAMPLE B", kt: "22K" },
+    { w: 1200, h: 514,  a: "#5a4520", b: "#cfa95c", nm: "BEYOND WIDE 21:9 bangle", cat: "SAMPLE C", kt: "21K" },
+    { w: 1200, h: 900,  a: "#836427", b: "#eccd85", nm: "WIDE 4:3 earrings",       cat: "SAMPLE C", kt: "22K" }
+  ];
+
+  /* ?nodims=1 drops photo_w/photo_h from every piece, which is exactly the
+     state of every photograph uploaded before patch4.sql. */
+  var noDims = q.get("nodims") === "1";
+
+  window.PREVIEW_DATA = {
+    settings: {
+      id: 1,
+      shop_name: "SAMPLE SHOP — not the real Monoram",
+      tagline: "SAMPLE tagline",
+      hero_title: "SHAPE TEST PAGE",
+      hero_text: "SAMPLE text. Made-up data so the photo shapes can be checked.",
+      address: "SAMPLE address — not a real address",
+      address_bn: "নমুনা ঠিকানা — আসল নয়",
+      phone1: "SAMPLE number", phone2: "", whatsapp: "", email: "SAMPLE email",
+      hours: "SAMPLE hours", closed_day: "SAMPLE day",
+      proprietor: "SAMPLE NAME", facebook_page: "", facebook_profile: "",
+      banner_on: false, bajus_member: false, show_admin_link: false,
+      show_hallmark: true, show_slip: true, show_exchange: true, show_repair: true,
+      logo_key: "D5-padma-lotus",
+      layout: q.get("layout") || "thread",
+      style_language: q.get("styleLang") || "minimal",
+      festival: "none",
+      theme_default: "night", theme_toggle: true,
+      rate_unit: "gram",
+      fx_on: false, fx_density: "normal"
+    },
+    rates: [
+      { id: 1, effective: "SAMPLE — older", k22: 11111, k21: 10555, trad: 8888, silver: 111, unit: "gram" },
+      { id: 2, effective: "SAMPLE — today", k22: 12345, k21: 11234, trad: 9876, silver: 123, unit: "gram" }
+    ],
+    products: P.map(function (x, i) {
+      var row = {
+        id: 900 + i, name: x.nm, category: x.cat, karat: x.kt,
+        blurb: "SAMPLE description — made up.",
+        weight_bhori: 0.5 + i * 0.4, price: 11111 * (i + 2),
+        tag: i % 2 === 0 ? "CASUAL" : null,
+        sold: i === 3,
+        featured: i === 0,
+        photo_url: shot(x.w, x.h, x.a, x.b, x.nm)
+      };
+      if (!noDims) { row.photo_w = x.w; row.photo_h = x.h; }
+      return row;
+    }),
+    festival: null
+  };
+
+  try {
+    if (q.get("mode")) localStorage.setItem("mj_mode", q.get("mode"));
+    if (q.get("lang")) localStorage.setItem("mj_lang", q.get("lang"));
+    localStorage.setItem("mj_fx", "off");
+  } catch (e) {}
+})();
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

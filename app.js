@@ -1,6 +1,6 @@
 import { db, configured, t, lang, setLang, money, num, esc, pick, bhoriLabel,
-         BHORI, ANA, RATTI, KARATS, karatName,
-         rateOf, bhoriRate, gramRate } from "./lib.js";
+         BHORI, ANA, RATTI, KARATS, karatName, monthShort, toLatinDigits,
+         rateOf, gramRate } from "./lib.js";
 import { buildTheme, applyTheme, DEFAULTS, logoSVG, wordmarkSVG, jewellersSVG,
          bouquetSVG, mandalaSVG, RULE } from "./theme.js";
 import { mountFX, wireFX, FX_DEFAULTS } from "./ambient.js";
@@ -152,16 +152,84 @@ const MAGNIFIER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
   stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/>
   <path d="M15.4 15.4L21 21M10.5 7.6v5.8M7.6 10.5h5.8"/></svg>`;
 
+/* =====================================================================
+   THE SHAPE OF A PHOTOGRAPH
+
+   A ring is photographed tall and a bracelet wide, and the shop's pictures
+   should keep the shape they were taken in rather than all being cropped
+   square. That costs something, though: if the frame has no shape until
+   the picture lands, every card below it jumps down the moment it does —
+   and on the slow connection most of the shop's visitors are on, the whole
+   page shuffles for several seconds. That is worse than the crop.
+
+   So the frame is given its shape BEFORE the picture arrives:
+
+     photo_w / photo_h   measured by the admin page at the moment it
+                         redraws the upload onto its 1200px canvas, and
+                         saved with the piece. Nothing to fill in by hand.
+
+   The ratio goes on the frame as --ar, a plain number (width ÷ height).
+   The stylesheet then clamps it between a tallest and a widest allowed
+   shape, per layout — a 9:16 phone snap would otherwise eat a whole
+   screen for one item. Inside those bounds nothing is cropped at all.
+
+   An inline --ar beats every stylesheet rule, so a measured photograph
+   always wins; a piece uploaded before the shop started recording this
+   has no --ar of its own and falls back to whatever shape that layout
+   used to crop to, marked `ar-guess` so it can be measured from the
+   picture itself once that arrives. See measureFrame() below.
+   ===================================================================== */
+const phFrame = p => {
+  const w = Number(p.photo_w), h = Number(p.photo_h);
+  const known = w > 0 && h > 0;
+  /* `ar-guess` means "a photograph is coming whose shape is not recorded".
+     A piece with no photograph at all is not marked: there will never be
+     anything to measure it from, and the layout's own shape is the answer. */
+  const guess = !known && p.photo_url;
+  return `<div class="ph${guess ? " ar-guess" : ""}"${
+    known ? ` style="--ar:${(w / h).toFixed(4)}"` : ""}>${photo(p)}</div>`;
+};
+
+/* The recorded pixel size as two numbers, or "" when it was never recorded.
+   Written out as numbers rather than as whatever the database handed over,
+   so nothing that is not a number can reach an HTML attribute. */
+const sizeAttrs = p => {
+  const w = Number(p.photo_w), h = Number(p.photo_h);
+  return w > 0 && h > 0 ? ` width="${Math.round(w)}" height="${Math.round(h)}"` : "";
+};
+
 /* The button sits over the whole photograph, so anywhere on the picture opens
    the viewer, while the magnifier in the corner shows that it can be tapped. */
 const photo = p => (p.photo_url
-  ? `<img src="${esc(p.photo_url)}" alt="${esc(pick(p, "name") || "")}"
+  ? `<img src="${esc(p.photo_url)}" alt="${esc(pick(p, "name") || "")}"${sizeAttrs(p)}
        loading="lazy" decoding="async">`
   : esc(t("photo")))
   + (pick(p, "tag") ? `<span class="tag">${esc(pick(p, "tag"))}</span>` : "")
   + (p.sold ? `<span class="soldb">${esc(t("sold"))}</span>` : "")
   + (p.photo_url ? `<button class="zoombtn" type="button" data-zoom="${esc(p.id ?? "")}"
        aria-label="${esc(t("view_photo"))}"><span class="zb">${MAGNIFIER}</span></button>` : "");
+
+/* A photograph from before photo_w/photo_h existed: take its true shape from
+   the picture now that it has loaded, and let go of the guessed one. This is
+   the one case where a card can still move — see the note above. */
+function measureFrame(img) {
+  const frame = img.closest && img.closest(".ph.ar-guess");
+  if (!frame || !img.naturalWidth || !img.naturalHeight) return;
+  frame.style.setProperty("--ar", (img.naturalWidth / img.naturalHeight).toFixed(4));
+  frame.classList.remove("ar-guess");
+}
+/* `load` does not bubble, so it is caught on the way down instead — one
+   listener for the whole page, installed once, so a re-render costs nothing.
+   ON THE DOCUMENT, NOT ON WINDOW: a load event stops at the document and is
+   never handed on to the window, so a window listener sees the page's own
+   load and not one single photograph. */
+document.addEventListener("load", e => {
+  if (e.target && e.target.tagName === "IMG") measureFrame(e.target);
+}, true);
+/* ...and anything that came out of the cache so fast the listener above never
+   saw it fire. Run after every render. */
+const measureLoaded = () => document.querySelectorAll(".ph.ar-guess img")
+  .forEach(im => { if (im.complete) measureFrame(im); });
 
 const waLink = nm => S.whatsapp
   ? `https://wa.me/${S.whatsapp}?text=${encodeURIComponent(`${t("enquire_p")}: ${nm || ""}`)}` : "#";
@@ -336,7 +404,7 @@ function rateBlock() {
         <div class="bandgrid">${grid}</div>
       </div>
       <p class="note bandnote">${esc(t("metal_only"))}</p>
-      ${RATES.length >= 2 ? `<div class="chartwrap">
+      ${chartPoints().length >= 2 ? `<div class="chartwrap">
         <p class="chartnote">${esc(t("step_note"))}</p>
         <svg class="mchart" id="chart" viewBox="0 0 400 190" preserveAspectRatio="xMidYMid meet" role="img"></svg>
       </div>` : ""}
@@ -463,7 +531,7 @@ function viewThread() {
   const { title, said } = heroText();
   const list = setOrder(shown());
   const beads = list.map(p => `<article class="bead${p.sold ? " is-sold" : ""}">
-      <div class="art"><div class="ph">${photo(p)}</div></div>
+      <div class="art">${phFrame(p)}</div>
       <div class="node"></div>
       <div class="side">
         <h3>${esc(pick(p, "name") || "")}</h3>
@@ -495,7 +563,7 @@ function viewInvitation() {
   const { title, said } = heroText();
   const list = setOrder(shown());
   const cards = list.map(p => `<article class="card${p.sold ? " is-sold" : ""}">
-      <div class="ph">${photo(p)}</div>
+      ${phFrame(p)}
       <h3>${esc(pick(p, "name") || "")}</h3>
       ${metaHTML(p)}
       ${weightLine(p) ? `<p class="w">${esc(weightLine(p))}</p>` : ""}
@@ -541,7 +609,7 @@ function viewOrnate() {
 
   const featHTML = feat ? `<article class="featured">
       ${orn("mand", "md")}
-      <div class="ph">${photo(feat)}</div>
+      ${phFrame(feat)}
       <div>
         <p class="kick">${esc(t("featured"))}</p>
         <h3>${esc(pick(feat, "name") || "")}</h3>
@@ -558,7 +626,7 @@ function viewOrnate() {
       </div></article>` : "";
 
   const plates = rest.map(p => `<article class="plate${p.sold ? " is-sold" : ""}">
-      <div class="ph">${photo(p)}</div>
+      ${phFrame(p)}
       <div>
         <h3>${esc(pick(p, "name") || "")}</h3>
         ${metaHTML(p)}
@@ -586,49 +654,170 @@ function viewOrnate() {
 
 /* ===================== chart ===================== */
 
-/* The short form of an "effective from" date, for the foot of the chart.
+/* The unit the chart is drawn in.
 
-   `effective` is free text the owner types, so this cannot parse it — it can
-   only shorten it safely. It used to be cut at twelve characters, which turned
-   "12 August 2026" into "12 August 20" and made the year look like a mistake.
+   liveUnit() can say 'both'; a chart cannot. Two y-axes on a 360px screen
+   are unreadable, so 'both' plots per gram — the same figure rateParts()
+   leads with everywhere else, and the shorter one to fit down the side.
+   Whenever the shop has not chosen 'both' the visitor's own switch governs,
+   exactly as it does for the cells, the pill and the calculators. */
+const chartUnit = () => liveUnit() === "bhori" ? "bhori" : "gram";
 
-   Instead: drop a trailing year, because every point on the chart is within
-   days of the others and the year is the same on all of them; then, if it is
-   still too long for the space, cut at a SPACE and mark the cut with an
-   ellipsis, never mid-word. Bengali digits are matched as well as Latin ones,
-   since the owner may type the date in either. */
-const AXIS_MAX = 11;
-export function axisDate(effective) {
-  let s = String(effective ?? "").split(",").pop().trim();
-  /* A four-figure year at the end, in Latin or Bengali digits — but only
-     when a space or comma separates it, so "12/08/2026" is left whole
-     instead of being trimmed to a dangling "12/08/". */
-  s = s.replace(/[\s,]+(?:[0-9]{4}|[০-৯]{4})$/, "").trim();
-  if (s.length <= AXIS_MAX) return s;
-  const cut = s.lastIndexOf(" ", AXIS_MAX);
-  return (cut > 0 ? s.slice(0, cut) : s.slice(0, AXIS_MAX)) + "…";
+/* The points the chart would draw, in the unit currently on screen. Every
+   figure comes from rateParts() — the same helper as every other surface —
+   so a row the owner typed per bhori and one typed per gram land on one
+   scale instead of 11.664x apart. rateBlock() asks for this too, so a
+   history that cannot be charted prints no empty frame. */
+function chartPoints() {
+  const u = chartUnit();
+  return RATES.slice(-6)
+    .map(row => ({ row, part: rateParts(row, "k22", null, u) }))
+    .filter(p => p.part);
+}
+
+/* ---------- when a rate came into effect ----------
+
+   `effective` is free text the owner types. "2:44 AM, 12 August 2026" is the
+   shape asked for, but nothing enforces it, so this reads what it can and
+   never throws:
+
+     - Bengali figures are turned back into ordinary digits first;
+     - a bare "12/08/2026" is read day first, because that is how a date is
+       written here and JavaScript would otherwise call it December;
+     - a bare "2026-08-12" is built in local time, so a timezone cannot slide
+       it to the day before;
+     - anything unreadable falls through to created_at, which is a real
+       timestamp; and if that fails too the caller prints the owner's own
+       words rather than "Invalid Date". */
+export function parseWhen(row) {
+  const raw = String(row?.effective ?? "").trim();
+  const s = toLatinDigits(raw);
+  const clock = /\d{1,2}\s*:\s*\d{2}/.test(s);          // did the owner type a time at all?
+  const dmy = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(s);
+  let d = dmy ? new Date(+dmy[3], +dmy[2] - 1, +dmy[1])
+        : iso ? new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10))
+        : s   ? new Date(s) : null;
+  if (d && isNaN(d.getTime())) d = null;
+  let made = row?.created_at ? new Date(row.created_at) : null;
+  if (made && isNaN(made.getTime())) made = null;
+  const date = d || made;
+  /* A date with no clock in it has no time to show, so the row's own
+     created_at stands in when two rates land on the same day. */
+  return { date, time: date ? ((d && clock) ? d : made) : null, raw };
+}
+
+/* A date the axis has room for, with the year kept: "12 Aug 2026", or
+   "১২ আগস্ট ২০২৬" in Bangla. The chart is a record as much as a picture, and
+   a label without a year goes stale the moment the year turns. */
+export function axisDate(row) {
+  const w = parseWhen(row);
+  if (!w.date) return axisRaw(w.raw);
+  return `${num(w.date.getDate())} ${monthShort(w.date.getMonth())} ${num(w.date.getFullYear())}`;
+}
+
+/* The clock, printed under the date only when two rates share a day. Kept to
+   24 hours: it is five figures wide in either language, where "2:44 AM" needs
+   an AM and a PM translated into Bangla and neither is short. */
+export function axisTime(row) {
+  const w = parseWhen(row);
+  if (!w.time) return "";
+  const p = n => String(n).padStart(2, "0");
+  return num(`${p(w.time.getHours())}:${p(w.time.getMinutes())}`);
+}
+
+/* Last resort: the owner's own words, cut at a SPACE and marked, never
+   mid-word and never silently missing its year. */
+const AXIS_MAX = 16;
+function axisRaw(s) {
+  const one = String(s).replace(/\s+/g, " ").trim();
+  if (one.length <= AXIS_MAX) return one;
+  const cut = one.lastIndexOf(" ", AXIS_MAX);
+  return (cut > 0 ? one.slice(0, cut) : one.slice(0, AXIS_MAX)) + "…";
 }
 
 function drawChart() {
   const svg = $("chart");
-  if (!svg || RATES.length < 2) return;
-  /* Chart the per-bhori figure so old and new rows sit on one scale. */
-  const pts = RATES.slice(-6).filter(p => bhoriRate(p, "k22") != null);
-  if (pts.length < 2) return;
-  const vals = pts.map(p => bhoriRate(p, "k22"));
+  if (!svg) return;
+  const pts = chartPoints();
+  /* One point is not a history — nothing is drawn at all. */
+  if (pts.length < 2) { svg.innerHTML = ""; return; }
+  const vals = pts.map(p => p.part.value);
+  /* The unit is named once, at the head of the axis, and the words come from
+     rateParts() — so the axis, the cells and the pill can never disagree, and
+     no unit is ever spelled out in this file. */
+  const unitText = pts[0].part.label;
+
   /* The viewBox is close to the width the chart actually gets on a phone, so
      the axis figures land near their stated pixel size instead of being
      scaled down to a quarter of it. At 640 wide a 9px label rendered at
      four and a half real pixels on a 360px screen — unreadable. */
-  const W = 400, H = 190, L = 88, R = 6, T = 12, B = 26;
+  const W = 400, H = 190, L = 88, R = 6, T = 12;
+  const n = pts.length;
+
+  /* ---- the labels, worked out before the geometry, because whether any of
+     them needs a second line decides how much room the foot has to keep ---- */
+  const dates = pts.map(p => axisDate(p.row));
+  const seen = {};
+  dates.forEach(s => { seen[s] = (seen[s] || 0) + 1; });
+  /* Two announcements on one day both read "12 Aug 2026". The ones that share
+     a date carry the clock underneath; a date that stands alone does not, so
+     the common case stays as short as it can be. */
+  const times = pts.map((p, i) => seen[dates[i]] > 1 ? axisTime(p.row) : "");
+
+  /* Poppins and Noto Sans Bengali are about this wide per character at 13px,
+     Bengali the wider of the two. It only has to be close: the figure decides
+     how many labels the axis has room for and where one would overhang, and
+     both answers are safe when it errs high. */
+  const CH = lang === "bn" ? 8.4 : 6.6, GAP = 14;
+  const widest = Math.max(...dates.map(s => s.length)) * CH;
+  const room = Math.max(2, Math.floor((W - L - R + GAP) / (widest + GAP)));
+  /* Never a label under every point once they would touch. The first and the
+     last are always kept — where the history starts and what it is today —
+     and the rest are spread evenly between them. */
+  const wanted = new Set();
+  const k = Math.min(n, room);
+  for (let j = 0; j < k; j++) wanted.add(Math.round(j * (n - 1) / (k - 1)));
+
+  const seg = (W - L - R) / n, x = i => L + seg * i;
+  /* Where a label would actually sit. One centred on its knob can hang off
+     the right-hand edge and be cut in half, or reach left across the figures
+     down the side; either way it stops at the edge of the plot and grows
+     inwards instead. */
+  const place = i => {
+    const cx = x(i) + seg / 2, half = dates[i].length * CH / 2;
+    if (cx + half > W - R)      return { i, x: W - R, anchor: " xend",   l: W - R - half * 2, r: W - R };
+    if (cx - half < L - 8)      return { i, x: L - 8, anchor: " xstart", l: L - 8, r: L - 8 + half * 2 };
+    return { i, x: cx, anchor: "", l: cx - half, r: cx + half };
+  };
+  /* Counting how many fit is not enough: pulling an end label inwards can
+     push it up against its neighbour even when the spacing said there was
+     room. So place them all, walk left to right, and drop whichever would
+     touch — the first and the last are never the one dropped. */
+  const shown = [];
+  for (const spot of [...wanted].sort((a, b) => a - b).map(place)) {
+    const prev = shown[shown.length - 1];
+    if (prev && spot.l < prev.r + GAP) {
+      if (spot.i !== n - 1) continue;                 // a middle label gives way
+      if (prev.i !== 0) shown.pop();                  // today's date outranks a middle one
+    }
+    shown.push(spot);
+  }
+
+  /* A second line under the dates has to be paid for out of the plot's own
+     height — the viewBox is fixed, and a clipped label is worse than a
+     slightly shorter chart. */
+  const B = shown.some(s => times[s.i]) ? 42 : 26;
   const lo = Math.min(...vals), hi = Math.max(...vals);
-  const pad = (hi - lo) * 0.35 || 1000, min = lo - pad, max = hi + pad;
+  const pad = (hi - lo) * 0.35 || (lo * 0.02 || 1000), min = lo - pad, max = hi + pad;
   const y = v => T + (H - T - B) * (1 - (v - min) / (max - min));
-  const n = pts.length, seg = (W - L - R) / n, x = i => L + seg * i;
-  let out = "";
+
+  /* x=2, not 0: the taka sign is drawn hard against its own left edge and at
+     x=0 the browser clipped a sliver of it off the side of the picture. */
+  let out = `<text class="axisunit" x="2" y="10">${esc(unitText)}</text>`;
   [min + (max - min) * 0.18, (min + max) / 2, max - (max - min) * 0.18].forEach(g => {
     out += `<line class="gridline" x1="${L}" y1="${y(g).toFixed(1)}" x2="${W - R}" y2="${y(g).toFixed(1)}"/>`
-        +  `<text class="gridtext" x="0" y="${(y(g) + 3).toFixed(1)}">${money(g)}</text>`;
+        +  `<text class="gridtext" x="2" y="${(y(g) + 3).toFixed(1)}">${money(g)}</text>`;
   });
   let d = `M ${x(0)} ${y(vals[0]).toFixed(1)}`;
   for (let i = 0; i < n; i++) {
@@ -636,27 +825,17 @@ function drawChart() {
     if (i < n - 1) d += ` L ${(x(i) + seg).toFixed(1)} ${y(vals[i + 1]).toFixed(1)}`;
   }
   out += `<path class="stepline" d="${d}"/>`;
-  /* Every point keeps its knob, but the date labels are wider than the gap
-     between points, so only some are drawn. They are chosen from the LAST
-     point backwards: today's rate is always labelled, and the spacing stays
-     even. Counting forwards instead left the final label pressed up against
-     its neighbour whenever the count did not divide cleanly. */
-  const every = n > 3 ? Math.ceil(n / 3) : 1;
-  const labelled = new Set();
-  for (let i = n - 1; i >= 0; i -= every) labelled.add(i);
-  /* The last point sits close to the right-hand edge, so a label centred on
-     it hangs off the end of the picture and is cut in half. That one is
-     anchored to the edge instead and grows leftwards. */
-  const lastLabel = Math.max(...labelled);
-  pts.forEach((p, i) => {
-    const atEnd = i === lastLabel;
-    const lx = atEnd ? (W - R) : (x(i) + seg / 2);
-    const label = labelled.has(i)
-      ? `<text class="xlab${atEnd ? " xend" : ""}" x="${lx.toFixed(1)}" y="${H - 8}">${esc(axisDate(p.effective))}</text>` : "";
-    out += `<circle class="knob" cx="${(x(i) + seg / 2).toFixed(1)}" cy="${y(vals[i]).toFixed(1)}" r="3.4"/>`
-        +  label;
+  /* every point keeps its knob, whether or not it is one of the labelled ones */
+  vals.forEach((v, i) =>
+    out += `<circle class="knob" cx="${(x(i) + seg / 2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.4"/>`);
+  const foot = B === 26 ? H - 8 : H - 24;
+  shown.forEach(s => {
+    out += `<text class="xlab${s.anchor}" x="${s.x.toFixed(1)}" y="${foot}">${esc(dates[s.i])}</text>`;
+    if (times[s.i])
+      out += `<text class="xlab xtime${s.anchor}" x="${s.x.toFixed(1)}" y="${H - 9}">${esc(times[s.i])}</text>`;
   });
   svg.innerHTML = out;
+  svg.setAttribute("aria-label", `${t("rate_today")} — ${unitText}`);
 }
 
 /* ===================== calculators ===================== */
@@ -854,6 +1033,7 @@ async function makeRateImage() {
 
 /* ===================== wiring ===================== */
 function wireUp() {
+  measureLoaded();
   drawChart();
   calcPrice(); calcExchange();
   ["w", "u", "k", "mk"].forEach(id => $(id) && $(id).addEventListener("input", calcPrice));

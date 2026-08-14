@@ -50,6 +50,11 @@ export const gramRate  = (row, key) => { const r = rateOf(row, key); return r ? 
 
 const BN = ["\u09E6","\u09E7","\u09E8","\u09E9","\u09EA","\u09EB","\u09EC","\u09ED","\u09EE","\u09EF"];
 export const toBn = s => String(s).replace(/[0-9]/g, d => BN[+d]);
+/* The other direction. The owner types the effective date by hand and may
+   type it in Bengali figures; nothing can be read out of it until those are
+   ordinary digits again. */
+export const toLatinDigits = s =>
+  String(s ?? "").replace(/[\u09E6-\u09EF]/g, d => String(d.charCodeAt(0) - 0x09E6));
 export let lang = localStorage.getItem("mj_lang") === "bn" ? "bn" : "en";
 export const setLang = l => { lang = l; localStorage.setItem("mj_lang", l); };
 
@@ -72,6 +77,13 @@ const D = {
   cat_note:["Prices are set by the shop and include the making charge where shown. Anything marked \u201Cask for price\u201D depends on the design. Weights are confirmed on the scale in front of you.","\u09A6\u09BE\u09AE \u09A6\u09CB\u0995\u09BE\u09A8 \u09A5\u09C7\u0995\u09C7 \u09A0\u09BF\u0995 \u0995\u09B0\u09BE\u0964 \u0993\u099C\u09A8 \u0986\u09AA\u09A8\u09BE\u09B0 \u09B8\u09BE\u09AE\u09A8\u09C7 \u09AE\u09C7\u09B6\u09BF\u09A8\u09C7 \u09A6\u09C7\u0996\u09BE\u09A8\u09CB \u09B9\u09AF\u09BC\u0964"],
   rate_today:["Today's rate","\u0986\u099C\u0995\u09C7\u09B0 \u09A6\u09BE\u09AE"],
   effective:["Effective","\u0995\u09BE\u09B0\u09CD\u09AF\u0995\u09B0"],
+  /* Short month names, for the dates under the rate chart. The Bengali ones
+     are the everyday shortenings of the Gregorian months \u2014 the calendar the
+     rate is announced on \u2014 not the Bangla seasonal months. */
+  mon_1:["Jan","\u099C\u09BE\u09A8\u09C1"],   mon_2:["Feb","\u09AB\u09C7\u09AC\u09CD\u09B0\u09C1"],  mon_3:["Mar","\u09AE\u09BE\u09B0\u09CD\u099A"],
+  mon_4:["Apr","\u098F\u09AA\u09CD\u09B0\u09BF\u09B2"],  mon_5:["May","\u09AE\u09C7"],      mon_6:["Jun","\u099C\u09C1\u09A8"],
+  mon_7:["Jul","\u099C\u09C1\u09B2\u09BE\u0987"],   mon_8:["Aug","\u0986\u0997\u09B8\u09CD\u099F"],   mon_9:["Sep","\u09B8\u09C7\u09AA\u09CD\u099F\u09C7"],
+  mon_10:["Oct","\u0985\u0995\u09CD\u099F\u09CB"],  mon_11:["Nov","\u09A8\u09AD\u09C7"],    mon_12:["Dec","\u09A1\u09BF\u09B8\u09C7"],
   /* Unit labels. These two keys are the ONLY place a unit is ever named.
      Nothing may write "per gram" or "BDT/GRAM" into app.js. */
   per_bhori:["per bhori","\u09AA\u09CD\u09B0\u09A4\u09BF \u09AD\u09B0\u09BF"],
@@ -129,6 +141,8 @@ const D = {
   not_setup:["The site is not connected to its database yet. Add your Supabase keys to config.js.","\u09A1\u09BE\u099F\u09BE\u09AC\u09C7\u09B8 \u09B8\u0982\u09AF\u09C1\u0995\u09CD\u09A4 \u09B9\u09AF\u09BC\u09A8\u09BF\u0964"]
 };
 export const t = k => (D[k] ? D[k][lang === "bn" ? 1 : 0] : k);
+/* month is 0-based, as Date.getMonth() gives it */
+export const monthShort = m => t("mon_" + (m + 1));
 
 export const money = n => {
   const s = "\u09F3" + Math.round(n).toLocaleString("en-IN");

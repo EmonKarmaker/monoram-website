@@ -12,14 +12,14 @@ live — GitHub is only a backup copy. See step 8.
 
 Once you have done this before, this is the whole routine:
 
-1. Supabase → SQL Editor → run `patch2.sql`, then `patch3.sql` — **first time only**
+1. Supabase → SQL Editor → run `patch2.sql`, then `patch3.sql`, then `patch4.sql`
+   — **first time only**
 2. `.\deploy.ps1 -Zip` — builds `monoram-upload.zip` with the right 16 files
 3. cPanel → File Manager → **Settings → Show Hidden Files** → into the site folder
 4. Upload the zip → right-click → **Extract** → **Overwrite all** → delete the zip
-5. Open the site on your phone
-6. If it looks unchanged: Chrome → ⋮ → Settings → Site settings → the site → **Clear & reset**
-7. Prove it: view source, first line of `styles.css` shows today's date
-8. `git add -A && git commit -m "..." && git push` — backup only, changes nothing live
+5. Open the site on your phone — **it updates by itself, there is nothing to clear**
+6. Prove it: view source, the second line shows the same `v=` code the deploy printed
+7. `git add -A && git commit -m "..." && git push` — backup only, changes nothing live
 
 Steps 2–4 are the zip route. If you set up FTP instead, they collapse into
 `.\deploy.ps1 -DryRun` then `.\deploy.ps1` — see step 4 below.
@@ -29,9 +29,10 @@ Steps 2–4 are the zip route. If you set up FTP instead, they collapse into
 
 # Step 1 — Update the database (first time only)
 
-**These two files have never been run.** Until they are, the admin panel will
+**These three files have never been run.** Until they are, the admin panel will
 show an error about a missing column whenever you try to save a rate or edit a
-piece, and the website cannot show a rate per gram.
+piece, the website cannot show a rate per gram, and every photograph is still
+cropped to a square instead of keeping the shape it was taken in.
 
 You only ever do this once. Running them a second time is harmless, so if you
 are unsure whether you did it, just do it.
@@ -60,8 +61,19 @@ fine. Anything else, send me the red text.
 
 9. Now do the same again with **patch3.sql**: New query → paste → Run →
    *Success. No rows returned.*
+10. And once more with **patch4.sql**: New query → paste → Run →
+    *Success. No rows returned.*
 
-**The order matters.** patch2 first, then patch3. patch3 depends on patch2.
+**The order matters.** patch2, then patch3, then patch4.
+
+**About patch4 and your photographs.** It adds two columns that record the
+shape of each photograph. The pieces already in your collection are left
+blank on purpose — nothing that is already on the website is changed or
+guessed at. Each one fills itself in the next time you edit that piece and
+choose its photograph again. Until you do, the website measures the picture
+itself as it downloads, which is why an old piece may nudge slightly on a
+slow connection and a re-uploaded one never does. You do not have to
+re-upload anything; the site works either way.
 
 ---
 
@@ -265,40 +277,57 @@ contains the live `index.html`.** Open File Manager, go looking for
 
 ---
 
-# Step 7 — Make your phone forget the old version
+# Step 7 — Checking the new version arrived
 
-Your phone keeps a copy of the site so it opens instantly. After an upload it
-may still show you yesterday's copy for a while.
+**You no longer have to clear anything, on any phone.** That instruction used
+to be here and it is gone on purpose.
 
-1. Open the site in Chrome.
-2. Tap **⋮** (three dots, top right) → **Settings**.
-3. Tap **Site settings** → **All sites** (or **Data stored**).
-4. Find your site in the list and tap it.
-5. Tap **Clear & reset**, and confirm.
-6. Close the tab completely and open the site again.
+Every deploy works out a short code from the contents of the site — something
+like `a3f19c4d` — and writes it into every address on the page:
 
-If you added the site to your home screen, close it from the recent-apps list
-first, otherwise it reopens from its own saved copy.
+```html
+<script type="module" src="app.js?v=a3f19c4d"></script>
+```
 
-### Proving the new version actually arrived
+Change one letter of one file and the code changes, so every address changes
+with it. A phone cannot have an old copy of an address it has never asked for.
+It is also written into the import lines *inside* the scripts, so the whole
+site moves to the new version together — you can never end up with a new
+`app.js` running against an old `lib.js`. And a tab left open on somebody's
+phone reloads itself once, by itself, onto the new build.
 
-Do not judge by eye. Check the build stamp:
+Deploying twice without changing anything costs your customers nothing: the
+code is the same both times, so nothing is downloaded again.
 
-1. On a computer, open the site, right-click → **View page source**.
-2. Find the line `<link rel="stylesheet" href="styles.css">` and click it.
-3. **The very first line of that file shows the date and time you deployed.**
+### Proving it, without developer tools
 
-   ```css
-   /* build: 2026-08-13 01:23 */
+The deploy prints the code it just published:
+
+```
+Code : v=a3f19c4d
+```
+
+To check a phone has that same code:
+
+1. Open the site.
+2. Chrome → **⋮** → **View page source** (or type `view-source:` in front of
+   the address).
+3. **The second line says the build and the code:**
+
+   ```html
+   <head><!-- monoram build: 2026-08-13 01:23  |  v=a3f19c4d -->
    ```
 
-If that date is old, the upload did not arrive — go back to step 6 and check
-the folder.
+The first line of `styles.css` carries the same thing, if you would rather
+look there.
 
-You can also check on the phone: Chrome → **⋮** → **Developer tools** is not
-available on mobile, so the view-source method on a computer is the reliable
-one. On a computer you can also open **F12 → Application → Service Workers**
-and read the cache name, which ends in the same date stamp.
+If the code shown is older than the one the deploy printed, the upload did not
+arrive — or something in front of Apache is serving a saved copy. **Section 5
+of `.htaccess` lists exactly what to check in cPanel** (LiteSpeed Cache and
+Cloudflare are the two usual culprits).
+
+On a computer you can also open **F12 → Application → Service Workers** and
+read the cache name: it ends in the same code.
 
 ---
 
@@ -353,9 +382,10 @@ and I will find which line the host objects to.
 
 ## The admin page says a column is missing
 
-You have not run step 1, or only ran patch2 and not patch3. Go back and run
+You have not run step 1, or you stopped part way through it. Go back and run
 them in order. The exact column named in the error tells you which patch:
 `unit`, `proprietor`, `facebook_page`, `blurb` → patch2. `rate_unit` → patch3.
+`photo_w`, `photo_h` → patch4.
 
 ## FTP connection refused, or it hangs
 

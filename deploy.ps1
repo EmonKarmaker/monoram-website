@@ -1,4 +1,4 @@
-<#
+﻿<#
 =====================================================================
   Monoram Jewellers — upload the website to cPanel over FTPS
   Windows version. Does exactly the same thing as deploy.sh.
@@ -7,6 +7,9 @@
 
       .\deploy.ps1 -DryRun      show what would be uploaded, change nothing
       .\deploy.ps1              actually upload
+      .\deploy.ps1 -StageOnly   build the upload folder and stop, so you
+                                can look inside it. Uploads nothing and
+                                does not need a server login at all.
 
   If Windows refuses to run it ("running scripts is disabled"), use:
 
@@ -21,8 +24,10 @@
     1. Reads the server login from .env.deploy (never from this file).
     2. Copies the website files — and only those — into a throwaway
        folder called .deploy-staging.
-    3. Stamps today's date into that copy of styles.css and sw.js, so
-       you can tell at a glance whether the live site is the new build.
+    3. Works out a short code from the contents of those files and writes
+       it into every address the browser will ask for, including the
+       import lines inside the scripts. That is what makes a new version
+       arrive on a phone by itself. See THE VERSION STAMP below.
     4. Uploads the folder to the server, one file at a time.
 
   It never deletes anything on the server. See the note by UPLOAD below.
@@ -34,7 +39,10 @@ param(
   [switch]$DryRun,
   # Build monoram-upload.zip instead of uploading — for the cPanel File
   # Manager route. Needs no .env.deploy and no internet connection.
-  [switch]$Zip
+  [switch]$Zip,
+  # Build .deploy-staging and stop, leaving it in place to be inspected.
+  # Needs no .env.deploy either.
+  [switch]$StageOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,8 +95,9 @@ function Test-Excluded($RelPath) {
 #  1. The server login
 # ---------------------------------------------------------------------
 $cfg = @{}
-# The zip route never connects to anything, so it needs no server login.
-if (-not $Zip) {
+# The zip and stage-only routes never connect to anything, so neither
+# needs a server login.
+if (-not $Zip -and -not $StageOnly) {
 
 if (-not (Test-Path $EnvFile)) {
   Stop-With @"
@@ -156,7 +165,7 @@ It should be just the address, like:
 "@
 }
 
-}   # end of: if (-not $Zip)
+}   # end of: if (-not $Zip -and -not $StageOnly)
 
 # ---------------------------------------------------------------------
 #  2. Which tool will do the uploading
@@ -166,7 +175,7 @@ if (-not (Test-Path $curl)) {
   $found = Get-Command curl.exe -ErrorAction SilentlyContinue
   if ($found) { $curl = $found.Source } else { $curl = $null }
 }
-if (-not $DryRun -and -not $Zip -and -not $curl) {
+if (-not $DryRun -and -not $Zip -and -not $StageOnly -and -not $curl) {
   Stop-With @"
 STOPPED — curl.exe was not found on this computer.
 
@@ -228,22 +237,155 @@ foreach ($rel in $files) {
   Copy-Item -LiteralPath $rel -Destination $dest -Force
 }
 
-# --- the version marker -------------------------------------------------
-# styles.css line 1, and the offline cache name in sw.js. Both are changed
-# ONLY in the staging copy — the files in this folder are left alone, so
-# your own copy never fills up with deploy noise. On the live site they
-# carry the date, which is how you tell the new build from the old one.
-$cssPath = Join-Path $Staging 'styles.css'
-if (Test-Path $cssPath) {
-  $css = Get-Content $cssPath -Raw
-  $css = [regex]::Replace($css, '^/\* build:.*?\*/', "/* build: $stampHuman */")
-  [System.IO.File]::WriteAllText((Resolve-Path $cssPath), $css)
+# =======================================================================
+#  THE VERSION STAMP — what stops a phone showing yesterday's site
+#
+#  This is the same work deploy.sh does, in PowerShell. Keep the two in
+#  step: if you change a pattern here, change it there too.
+#
+#  WHAT HAPPENS HERE
+#    A short code is worked out from the CONTENTS of the website files —
+#    something like a3f19c4d. It is then written into the staging copy in
+#    four places, so that every address the browser asks for carries it:
+#
+#      index.html    <script src="app.js?v=a3f19c4d">
+#      admin.html    the same, for admin.js
+#      app.js        import { ... } from "./lib.js?v=a3f19c4d"
+#      sw.js         one line, from which it builds both its cache name
+#                    and its own list of addresses
+#
+#  WHY THE IMPORTS MATTER MOST
+#    app.js is an ES module: it fetches lib.js, theme.js, ambient.js and
+#    viewer.js by itself, using the addresses written inside it. Stamping
+#    only the <script> tag in index.html would leave those four asking for
+#    plain "./lib.js" — and a phone with an old lib.js in its cache would
+#    happily hand it to the new app.js. A new file running against an old
+#    one fails in ways nobody can diagnose. Stamping the import lines is
+#    what makes the whole site update as one thing or not at all.
+#
+#  WHY A CODE FROM THE CONTENTS AND NOT THE DATE
+#    A date changes on every deploy, so it would make every phone download
+#    all 200KB again even when nothing changed. This code only changes
+#    when a file actually changes.
+#
+#  ALL OF THIS HAPPENS ON THE COPY IN .deploy-staging, NEVER on your own
+#  files, so "git diff" stays clean and readable.
+# =======================================================================
+
+# The files the code is worked out from, in a fixed order — the same list
+# as deploy.sh. .htaccess is not here on purpose: changing a server rule
+# does not need every phone to re-download the site.
+$hashInputs = @('index.html','admin.html','styles.css','config.js','marks.js',
+                'app.js','lib.js','theme.js','ambient.js','viewer.js','admin.js','sw.js')
+
+$sha = [System.Security.Cryptography.SHA1]::Create()
+$buf = New-Object System.IO.MemoryStream
+foreach ($h in $hashInputs) {
+  if (Test-Path $h) {
+    $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $h))
+    $buf.Write($bytes, 0, $bytes.Length)
+  }
 }
-$swPath = Join-Path $Staging 'sw.js'
-if (Test-Path $swPath) {
-  $sw = Get-Content $swPath -Raw
-  $sw = [regex]::Replace($sw, 'const CACHE = "(monoram-v\d+)"', "const CACHE = `"`$1-$stampTag`"")
-  [System.IO.File]::WriteAllText((Resolve-Path $swPath), $sw)
+$buf.Position = 0
+$version = ([BitConverter]::ToString($sha.ComputeHash($buf)) -replace '-','').Substring(0,8).ToLower()
+$buf.Dispose(); $sha.Dispose()
+$q = "?v=$version"
+
+function Edit-Staged($Name, [scriptblock]$Change) {
+  $p = Join-Path $Staging $Name
+  if (-not (Test-Path $p)) { return }
+  $full = (Resolve-Path $p).Path
+  $text = [System.IO.File]::ReadAllText($full)
+  $text = & $Change $text
+  [System.IO.File]::WriteAllText($full, $text)
+}
+
+# --- 1. the <script src> and <link href> tags in the two pages ----------
+# Only these five names are touched. Everything else the pages link to —
+# icons, Google Fonts, admin.html itself — is not matched.
+foreach ($page in @('index.html','admin.html')) {
+  Edit-Staged $page {
+    param($t)
+    $t = [regex]::Replace($t,
+      '(src|href)="(styles\.css|config\.js|marks\.js|app\.js|admin\.js)"',
+      "`$1=`"`$2$q`"")
+    # the marker the owner can read in View source
+    $t = [regex]::Replace($t, '(?m)^<head>$',
+      "<head><!-- monoram build: $stampHuman  |  v=$version -->")
+    $t
+  }
+}
+
+# --- 2. the import lines inside the modules -----------------------------
+# Anchored on  from "./  so the one import that must NOT be touched — the
+# Supabase library in lib.js, which comes from a CDN over https — cannot
+# be matched by accident.
+foreach ($mod in @('app.js','admin.js','viewer.js')) {
+  Edit-Staged $mod {
+    param($t)
+    [regex]::Replace($t, 'from "\./(lib|theme|ambient|viewer)\.js"', "from `"./`$1.js$q`"")
+  }
+}
+
+# --- 3. the offline cache ----------------------------------------------
+# One line. sw.js builds its cache name and its whole address list from it,
+# so there is nothing left for anyone to remember to bump.
+Edit-Staged 'sw.js' {
+  param($t)
+  [regex]::Replace($t, '(?m)^const VERSION = "dev";$', "const VERSION = `"$version`";")
+}
+
+# --- 4. the stylesheet's first line, for View source -------------------
+Edit-Staged 'styles.css' {
+  param($t)
+  [regex]::Replace($t, '^/\* build:.*?\*/', "/* build: $stampHuman  |  v=$version */")
+}
+
+# --- 5. refuse to deploy a half-stamped build --------------------------
+# If a future edit renames a file or reformats an import, the patterns
+# above stop matching and the stamping silently does nothing — which is
+# exactly the invisible failure this whole scheme exists to prevent. So
+# check the result instead of trusting it.
+$stampErrors = @()
+$idx = [System.IO.File]::ReadAllText((Resolve-Path (Join-Path $Staging 'index.html')).Path)
+if ($idx -notmatch [regex]::Escape("app.js$q"))    { $stampErrors += "index.html does not reference app.js$q" }
+if ($idx -notmatch [regex]::Escape("styles.css$q")) { $stampErrors += "index.html does not reference styles.css$q" }
+$appTxt = [System.IO.File]::ReadAllText((Resolve-Path (Join-Path $Staging 'app.js')).Path)
+foreach ($m in @('lib','theme','ambient','viewer')) {
+  if ($appTxt -notmatch [regex]::Escape("./$m.js$q")) { $stampErrors += "app.js still imports ./$m.js with no version" }
+}
+$swTxt = [System.IO.File]::ReadAllText((Resolve-Path (Join-Path $Staging 'sw.js')).Path)
+if ($swTxt -notmatch [regex]::Escape("const VERSION = `"$version`";")) { $stampErrors += 'sw.js version line was not replaced' }
+# Nothing may reach the server still asking for an unversioned module.
+foreach ($mod in @('app.js','admin.js','viewer.js')) {
+  $p = Join-Path $Staging $mod
+  if (Test-Path $p) {
+    $txt = [System.IO.File]::ReadAllText((Resolve-Path $p).Path)
+    if ($txt -match 'from "\./(lib|theme|ambient|viewer)\.js"') {
+      $stampErrors += "$mod has an import specifier left without a version"
+    }
+  }
+}
+
+if ($stampErrors.Count -gt 0) {
+  Remove-Item $Staging -Recurse -Force
+  $list = ($stampErrors | ForEach-Object { "  * $_" }) -join "`n"
+  Stop-With @"
+STOPPED — the build version could not be stamped in.
+
+Nothing has been uploaded and nothing has changed.
+
+$list
+
+Without that stamp, phones can keep showing an old copy of the site,
+and a new script can run against an old one. That is the exact fault
+this step exists to prevent, so the deploy stops here rather than
+uploading something broken.
+
+This almost always means a file was renamed, or an import line in
+app.js, admin.js or viewer.js was reformatted. The patterns that do the
+stamping are in deploy.ps1, in the section headed THE VERSION STAMP.
+"@
 }
 
 # --- the .htaccess check ------------------------------------------------
@@ -264,7 +406,9 @@ on the server for days while phones keep showing the old one. Check that
 #  4. Report
 # ---------------------------------------------------------------------
 Write-Rule
-if ($Zip) {
+if ($StageOnly) {
+  Write-Host 'STAGE ONLY — the upload folder is built and left in place.'
+} elseif ($Zip) {
   Write-Host 'BUILDING A ZIP for the cPanel File Manager. Nothing is uploaded.'
 } elseif ($DryRun) {
   Write-Host 'DRY RUN — nothing will be uploaded and nothing will change.'
@@ -273,10 +417,14 @@ if ($Zip) {
 }
 Write-Rule
 Write-Host "From : $root"
-if (-not $Zip) {
+if (-not $Zip -and -not $StageOnly) {
   Write-Host "To   : $($cfg['FTP_DIR'])/  on  $($cfg['FTP_HOST'])  (port $($cfg['FTP_PORT']), FTPS)"
 }
 Write-Host "Build: $stampHuman"
+Write-Host "Code : v=$version"
+Write-Host '       ^ this is the version now going live. To check that a phone'
+Write-Host '         has it: open the site, View source, and look at the comment'
+Write-Host '         on the second line. It must say the same code.'
 Write-Host ''
 Write-Host "Files ($($files.Count)):"
 $total = 0
@@ -311,6 +459,20 @@ if ($prunedDirs.Count -gt 0) {
 #  The files sit at the TOP LEVEL of the zip, not inside a folder, so
 #  extracting it in public_html puts them straight where they belong.
 # ---------------------------------------------------------------------
+if ($StageOnly) {
+  Write-Host ''
+  Write-Rule
+  Write-Host 'STAGE ONLY FINISHED. Nothing was uploaded.'
+  Write-Host ''
+  Write-Host 'The exact files that would go to the server are in:'
+  Write-Host "    $Staging\"
+  Write-Host ''
+  Write-Host "Version stamped in: v=$version"
+  Write-Host "Look inside $Staging\index.html and $Staging\app.js to see it."
+  Write-Rule
+  exit 0
+}
+
 if ($Zip) {
   $zipName = "monoram-upload.zip"
   $zipPath = Join-Path $root $zipName
@@ -354,8 +516,8 @@ if ($Zip) {
   Write-Host '  6. Delete monoram-upload.zip from the server afterwards.'
   Write-Host '  7. Check .htaccess is listed in the folder.'
   Write-Host ''
-  Write-Host 'Then check the site, and confirm the first line of styles.css'
-  Write-Host "reads:   /* build: $stampHuman */"
+  Write-Host 'Then open the site and View source. The second line reads:'
+  Write-Host "    <!-- monoram build: $stampHuman  |  v=$version -->"
   Write-Rule
   exit 0
 }
@@ -439,18 +601,22 @@ if ($failed.Count -gt 0) {
   exit 1
 }
 
-Write-Host "DONE — $okCount files uploaded, build $stampHuman."
+Write-Host "DONE — $okCount files uploaded, build $stampHuman, v=$version."
 Write-Host ''
-Write-Host 'Now check it on your phone:'
+Write-Host 'You do not need to clear anything on any phone. Every address on the'
+Write-Host "page now ends in ?v=$version, which no phone has ever asked for, so"
+Write-Host 'no phone can have an old copy of it. A tab left open reloads itself.'
+Write-Host ''
+Write-Host 'To check a phone has the new build:'
 if ($cfg['SITE_URL'] -ne '') {
   Write-Host "  1. Open  $($cfg['SITE_URL'])"
 } else {
   Write-Host '  1. Open the website'
 }
-Write-Host '  2. If it looks unchanged, clear the phone''s copy:'
-Write-Host '     Chrome -> three dots -> Settings -> Site settings -> the site'
-Write-Host '     -> Clear & reset'
-Write-Host '  3. To prove the new build arrived, view the page source and look'
-Write-Host '     at the first line of styles.css. It should read:'
-Write-Host "         /* build: $stampHuman */"
+Write-Host '  2. Menu -> View page source (or add  view-source:  in front of the'
+Write-Host '     address). The second line reads:'
+Write-Host "         <!-- monoram build: $stampHuman  |  v=$version -->"
+Write-Host '  3. If it shows an older code, the phone is being served by a cache'
+Write-Host '     in FRONT of Apache — LiteSpeed or Cloudflare. Section 5 of'
+Write-Host '     .htaccess lists exactly what to check in cPanel.'
 Write-Rule
